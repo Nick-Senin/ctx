@@ -1284,6 +1284,7 @@ fn provider_import_reuses_existing_legacy_provider_event_identity() {
         .unwrap();
     store
         .upsert_event(&Event {
+            message_provenance: Default::default(),
             id: legacy_event_id,
             seq: provider_event_seq(provider, provider_session_id, 0),
             history_record_id: None,

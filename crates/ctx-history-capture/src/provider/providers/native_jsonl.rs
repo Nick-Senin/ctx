@@ -577,6 +577,7 @@ pub(crate) fn native_jsonl_event(
     );
 
     Some(ProviderEventEnvelope {
+        message_provenance: Default::default(),
         provider_event_index: (line_number - 1) as u64,
         provider_event_hash: Some(event_id.clone()),
         cursor: Some(event_id.clone()),

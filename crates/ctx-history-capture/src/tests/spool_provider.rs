@@ -415,6 +415,7 @@ fn pi_session_identity_resolver_reuses_legacy_line_indexed_events() {
         provider_source_event_import_identity(source_id, legacy_index, event_hash);
     store
         .upsert_event(&Event {
+            message_provenance: Default::default(),
             id: legacy_identity.id,
             seq: legacy_identity.seq,
             history_record_id: None,
@@ -520,6 +521,7 @@ fn pi_session_import_reuses_legacy_line_indexed_event_by_entry_id_after_line_shi
         .unwrap();
     store
         .upsert_event(&Event {
+            message_provenance: Default::default(),
             id: legacy_identity.id,
             seq: legacy_identity.seq,
             history_record_id: None,

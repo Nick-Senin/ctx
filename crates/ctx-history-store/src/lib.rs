@@ -8,6 +8,7 @@ mod events;
 mod files;
 mod identity;
 mod object_store;
+mod provenance_merge;
 mod raw_sql;
 mod records;
 mod runs;
@@ -46,7 +47,7 @@ use std::{
 
 use rusqlite::Connection;
 
-pub(crate) const SCHEMA_VERSION: i64 = 46;
+pub(crate) const SCHEMA_VERSION: i64 = 47;
 
 pub struct Store {
     path: PathBuf,

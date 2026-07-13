@@ -78,6 +78,9 @@ pub(crate) fn run_migrations(conn: &Connection, user_version: i64) -> Result<()>
     if user_version < 46 {
         migrate_to_v46(conn)?;
     }
+    if user_version < 47 {
+        super::authorship_migration::migrate_to_v47(conn)?;
+    }
     Ok(())
 }
 

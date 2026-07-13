@@ -74,6 +74,7 @@ fn rich_search_matches_typed_metadata_with_citations() {
     store.upsert_run(&run).unwrap();
 
     let event = Event {
+        message_provenance: Default::default(),
         id: Uuid::parse_str("018f45d0-0000-7000-8000-000000000204").unwrap(),
         seq: 1,
         history_record_id: Some(record.id),
@@ -294,6 +295,7 @@ fn nested_provider_body_event_preview_drives_search() {
     };
     store.upsert_session(&session).unwrap();
     let event = Event {
+        message_provenance: Default::default(),
         id: Uuid::parse_str("018f45d0-0000-7000-8000-000000000302").unwrap(),
         seq: 1,
         history_record_id: Some(record.id),

@@ -17,6 +17,7 @@ fn local_snippets_preserve_transcript_text() {
 #[test]
 fn events_render_payload_previews_when_payload_exists() {
     let event = Event {
+        message_provenance: Default::default(),
         id: Uuid::parse_str("018f45d0-0000-7000-8000-000000000010").unwrap(),
         seq: 1,
         history_record_id: None,

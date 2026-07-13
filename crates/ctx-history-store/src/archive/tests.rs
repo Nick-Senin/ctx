@@ -2,14 +2,15 @@ use std::{fs, path::Path};
 
 use chrono::{DateTime, Utc};
 use ctx_history_core::{
-    new_id, Artifact, ArtifactKind, EntityTimestamps, Fidelity, SessionHistoryArchive,
-    SyncMetadata, SyncState, Visibility,
+    new_id, Artifact, ArtifactKind, EntityTimestamps, Event, EventRole, EventType, Fidelity,
+    MessageAuthorship, MessageProvenance, SessionHistoryArchive, SyncMetadata, SyncState,
+    Visibility,
 };
 use uuid::Uuid;
 
 use crate::archive::{validate_archive_artifact_record_blob, validate_archive_version};
 use crate::object_store::{object_relative_path, sha256_hex};
-use crate::StoreError;
+use crate::{Store, StoreError};
 
 fn tempdir() -> tempfile::TempDir {
     let root = std::env::var_os("TEST_TMPDIR")
@@ -158,4 +159,96 @@ fn archive_version_validation_rejects_future_version() {
         error,
         StoreError::UnsupportedArchiveVersion(version) if version == 3
     ));
+}
+
+#[test]
+fn archive_round_trip_preserves_message_provenance() {
+    let source_dir = tempdir();
+    let source = Store::open(source_dir.path().join("source.sqlite")).unwrap();
+    let event = Event {
+        message_provenance: MessageProvenance {
+            authorship: MessageAuthorship::Human,
+            evidence: "provider_prompt_log".to_owned(),
+            classifier_version: 1,
+        },
+        id: new_id(),
+        seq: 930001,
+        history_record_id: None,
+        session_id: None,
+        run_id: None,
+        event_type: EventType::Message,
+        role: Some(EventRole::User),
+        occurred_at: fixed_time(),
+        capture_source_id: None,
+        payload: serde_json::json!({"text":"archive provenance"}),
+        payload_blob_id: None,
+        dedupe_key: Some("archive-provenance".to_owned()),
+        sync: SyncMetadata::default(),
+    };
+    source.upsert_event(&event).unwrap();
+    let archive = source.export_archive().unwrap();
+
+    let destination_dir = tempdir();
+    let mut destination = Store::open(destination_dir.path().join("destination.sqlite")).unwrap();
+    destination.import_archive(&archive, false).unwrap();
+    assert_eq!(
+        destination.get_event(event.id).unwrap().message_provenance,
+        event.message_provenance
+    );
+}
+
+#[test]
+fn archive_import_uses_versioned_provenance_merge_without_replacing_raw_event() {
+    let source_dir = tempdir();
+    let source = Store::open(source_dir.path().join("source.sqlite")).unwrap();
+    let mut event = Event {
+        message_provenance: MessageProvenance {
+            authorship: MessageAuthorship::Human,
+            evidence: "old_prompt_log".into(),
+            classifier_version: 1,
+        },
+        id: new_id(),
+        seq: 930002,
+        history_record_id: None,
+        session_id: None,
+        run_id: None,
+        event_type: EventType::Message,
+        role: Some(EventRole::User),
+        occurred_at: fixed_time(),
+        capture_source_id: None,
+        payload: serde_json::json!({"text":"archive incoming raw"}),
+        payload_blob_id: None,
+        dedupe_key: Some("archive-version-policy".into()),
+        sync: SyncMetadata::default(),
+    };
+    source.upsert_event(&event).unwrap();
+    let old_archive = source.export_archive().unwrap();
+
+    let destination_dir = tempdir();
+    let mut destination = Store::open(destination_dir.path().join("destination.sqlite")).unwrap();
+    let mut stored = event.clone();
+    stored.payload = serde_json::json!({"text":"destination original raw"});
+    stored.message_provenance = MessageProvenance {
+        authorship: MessageAuthorship::Automated,
+        evidence: "new_classifier".into(),
+        classifier_version: 2,
+    };
+    destination.upsert_event(&stored).unwrap();
+    destination.import_archive(&old_archive, true).unwrap();
+    let after_old = destination.get_event(event.id).unwrap();
+    assert_eq!(after_old.payload, stored.payload);
+    assert_eq!(after_old.message_provenance, stored.message_provenance);
+
+    event.message_provenance = MessageProvenance {
+        authorship: MessageAuthorship::Human,
+        evidence: "explicit_correction".into(),
+        classifier_version: 3,
+    };
+    source.upsert_event(&event).unwrap();
+    destination
+        .import_archive(&source.export_archive().unwrap(), true)
+        .unwrap();
+    let corrected = destination.get_event(event.id).unwrap();
+    assert_eq!(corrected.payload, stored.payload);
+    assert_eq!(corrected.message_provenance, event.message_provenance);
 }

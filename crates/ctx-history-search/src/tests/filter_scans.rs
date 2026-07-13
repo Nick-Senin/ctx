@@ -335,6 +335,7 @@ fn search_ignores_agent_history_bookkeeping_terms_without_content_evidence() {
     };
     store.upsert_session(&session).unwrap();
     let event = Event {
+        message_provenance: Default::default(),
         id: Uuid::parse_str("018f45d0-0000-7000-8005-000000000003").unwrap(),
         seq: 1,
         history_record_id: Some(record.id),

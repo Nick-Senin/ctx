@@ -47,6 +47,7 @@ fn candidate_ranking_prefers_messages_and_summaries_and_honors_event_type_filter
         store.insert_record(&record).unwrap();
         store
             .upsert_event(&Event {
+                message_provenance: Default::default(),
                 id: Uuid::parse_str(&format!("018f45d0-0000-7000-8000-00000009{index:04x}"))
                     .unwrap(),
                 seq: index as u64,

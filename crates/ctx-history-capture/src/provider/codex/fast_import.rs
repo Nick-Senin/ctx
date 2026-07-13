@@ -13,7 +13,7 @@ use ctx_history_store::Store;
 use serde_json::{json, Value};
 use uuid::Uuid;
 
-use crate::compute_payload_hash;
+use crate::provider::importer::provider_event_identity_hash;
 use crate::provider::importer::{
     provider_command_run_from_event, provider_event_import_identity, provider_import_session_uuid,
     provider_session_uuid, provider_source_identity, provider_source_root,
@@ -448,7 +448,7 @@ pub(crate) fn import_codex_provider_event_fast(
     let event_hash = event
         .provider_event_hash
         .clone()
-        .unwrap_or(compute_payload_hash(&payload)?);
+        .unwrap_or(provider_event_identity_hash(event)?);
     let event_identity = provider_event_import_identity(
         store,
         provider,
@@ -472,6 +472,7 @@ pub(crate) fn import_codex_provider_event_fast(
         event_hash: &event_hash,
     })?;
     let normalized_event = Event {
+        message_provenance: event.message_provenance.clone(),
         id: event_identity.id,
         seq: event_identity.seq,
         history_record_id,

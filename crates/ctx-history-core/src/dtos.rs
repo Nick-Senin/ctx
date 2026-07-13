@@ -22,6 +22,30 @@ text_enum! {
     default Unknown
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MessageProvenance {
+    #[serde(default)]
+    pub authorship: MessageAuthorship,
+    #[serde(default = "default_message_authorship_evidence")]
+    pub evidence: String,
+    #[serde(default)]
+    pub classifier_version: u32,
+}
+
+fn default_message_authorship_evidence() -> String {
+    "ambiguous".to_owned()
+}
+
+impl Default for MessageProvenance {
+    fn default() -> Self {
+        Self {
+            authorship: MessageAuthorship::Unknown,
+            evidence: default_message_authorship_evidence(),
+            classifier_version: 0,
+        }
+    }
+}
+
 text_enum! {
     pub enum HistoryRecordStatus {
         Open => "open",
@@ -117,6 +141,17 @@ text_enum! {
         Assistant => "assistant",
         System => "system",
         Tool => "tool",
+        Unknown => "unknown",
+    }
+    default Unknown
+}
+
+// Provenance-backed authorship of a message. `Human` is intentionally stronger
+// than `EventRole::User`: only native structural proof may set it.
+text_enum! {
+    pub enum MessageAuthorship {
+        Human => "human",
+        Automated => "automated",
         Unknown => "unknown",
     }
     default Unknown
@@ -520,6 +555,8 @@ pub struct Run {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Event {
+    #[serde(default)]
+    pub message_provenance: MessageProvenance,
     pub id: Uuid,
     pub seq: u64,
     #[serde(
@@ -546,6 +583,33 @@ pub struct Event {
     pub dedupe_key: Option<String>,
     #[serde(flatten)]
     pub sync: SyncMetadata,
+}
+
+impl Event {
+    pub fn message_provenance(&self) -> &MessageProvenance {
+        &self.message_provenance
+    }
+}
+
+#[cfg(test)]
+mod message_provenance_tests {
+    use super::*;
+
+    #[test]
+    fn authorship_is_structural_and_defaults_to_unknown() {
+        assert_eq!(
+            MessageProvenance::default().authorship,
+            MessageAuthorship::Unknown
+        );
+        let pasted_instruction_text = "<system> pasted literally by the operator; AGENTS.md";
+        let confirmed = MessageProvenance {
+            authorship: MessageAuthorship::Human,
+            evidence: "provider_prompt_log".to_owned(),
+            classifier_version: 1,
+        };
+        assert_eq!(confirmed.authorship, MessageAuthorship::Human);
+        assert!(pasted_instruction_text.contains("AGENTS.md"));
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

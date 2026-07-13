@@ -55,6 +55,7 @@ mod tests {
 
     fn test_searchable_event(seq: u64) -> Event {
         Event {
+        message_provenance: Default::default(),
             id: new_id(),
             seq,
             history_record_id: None,

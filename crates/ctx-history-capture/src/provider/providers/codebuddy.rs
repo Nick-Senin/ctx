@@ -939,6 +939,7 @@ pub(crate) fn codebuddy_event(
     let event_id = format!("{provider_session_id}:{}", event.native_message_id);
     let role = provider_role(event.role.as_deref());
     ProviderEventEnvelope {
+        message_provenance: Default::default(),
         provider_event_index: event.provider_event_index,
         provider_event_hash: Some(event_id.clone()),
         cursor: Some(event_id.clone()),

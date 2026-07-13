@@ -11,6 +11,7 @@ use uuid::Uuid;
 use super::validate_archive_artifact_record_blobs;
 use crate::connection::{optional_timestamp_ms, optional_uuid_string, parse_uuid, timestamp_ms};
 use crate::object_store::BlobWriteGuard;
+use crate::provenance_merge::merge_message_provenance;
 use crate::{Result, StoreError};
 
 pub(super) fn upsert_capture_source_tx(
@@ -287,12 +288,24 @@ fn upsert_event_tx(tx: &Transaction<'_>, event: &Event) -> Result<Uuid> {
     } else {
         event.id
     };
+    if tx
+        .query_row(
+            "SELECT 1 FROM events WHERE id = ?1",
+            params![event_id.to_string()],
+            |_| Ok(()),
+        )
+        .optional()?
+        .is_some()
+    {
+        merge_message_provenance(tx, event_id, &event.message_provenance)?;
+        return Ok(event_id);
+    }
 
     tx.execute(
         r#"
         INSERT INTO events
-        (id, seq, history_record_id, session_id, run_id, event_type, role, occurred_at_ms, capture_source_id, payload_json, payload_blob_id, dedupe_key, visibility, fidelity, sync_state, sync_version, deleted_at_ms, metadata_json)
-        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)
+        (id, seq, history_record_id, session_id, run_id, event_type, role, occurred_at_ms, capture_source_id, payload_json, payload_blob_id, dedupe_key, visibility, fidelity, sync_state, sync_version, deleted_at_ms, metadata_json, message_authorship, message_authorship_evidence, message_authorship_classifier_version)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)
         ON CONFLICT(id) DO UPDATE SET
             seq = excluded.seq,
             history_record_id = excluded.history_record_id,
@@ -331,6 +344,9 @@ fn upsert_event_tx(tx: &Transaction<'_>, event: &Event) -> Result<Uuid> {
             event.sync.sync_version as i64,
             optional_timestamp_ms(event.sync.deleted_at),
             serde_json::to_string(&event.sync.metadata)?,
+            event.message_provenance.authorship.as_str(),
+            event.message_provenance.evidence.as_str(),
+            i64::from(event.message_provenance.classifier_version),
         ],
     )?;
     Ok(event_id)

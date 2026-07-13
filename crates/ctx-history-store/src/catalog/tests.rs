@@ -152,6 +152,7 @@ fn imported_source(source_id: Uuid, source_root: &str, external_session_id: &str
 
 fn session_event(session_id: Uuid, index: u64) -> Event {
     Event {
+        message_provenance: Default::default(),
         id: new_id(),
         seq: index,
         history_record_id: None,
@@ -1253,6 +1254,7 @@ fn row_readers_reject_negative_unsigned_columns() {
     assert_sql_conversion_error(store.get_capture_source(bad_sync_version));
 
     let event = Event {
+        message_provenance: Default::default(),
         id: new_id(),
         seq: 1,
         history_record_id: None,

@@ -298,6 +298,8 @@ pub struct ProviderSessionEnvelope {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProviderEventEnvelope {
+    #[serde(default)]
+    pub message_provenance: crate::MessageProvenance,
     pub provider_event_index: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub provider_event_hash: Option<String>,
@@ -318,6 +320,12 @@ pub struct ProviderEventEnvelope {
     pub payload: Value,
     #[serde(default = "super::default_metadata")]
     pub metadata: Value,
+}
+
+impl ProviderEventEnvelope {
+    pub fn message_provenance(&self) -> crate::MessageProvenance {
+        self.message_provenance.clone()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

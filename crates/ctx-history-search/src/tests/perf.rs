@@ -457,6 +457,7 @@ fn synthetic_perf_archive(event_count: usize, events_per_record: usize) -> Sessi
             };
             let event_id = perf_uuid(0x6000, event_index as u64);
             archive.events.push(Event {
+        message_provenance: Default::default(),
                 id: event_id,
                 seq: (event_index + 1) as u64,
                 history_record_id: Some(record_id),

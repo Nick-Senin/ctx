@@ -210,6 +210,7 @@ pub(crate) fn lingma_event(
     let (text, truncated, retention) =
         provider_policy_event_text(draft.event_type, &draft.text, &body);
     ProviderEventEnvelope {
+        message_provenance: Default::default(),
         provider_event_index: draft.provider_event_index,
         provider_event_hash: Some(format!(
             "{}:{}:{role_name}",

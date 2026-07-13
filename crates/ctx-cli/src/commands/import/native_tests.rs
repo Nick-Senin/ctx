@@ -110,6 +110,7 @@ fn unchanged_root_source_still_repairs_event_search_backfill() {
         run_id: None,
         event_type: EventType::Message,
         role: Some(EventRole::User),
+        message_provenance: Default::default(),
         occurred_at: utc_now(),
         capture_source_id: None,
         payload: json!({"text": "unchanged root backfill oracle"}),

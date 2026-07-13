@@ -2,8 +2,8 @@ use super::{
     fixed_time, search_packet, sync_metadata, test_store, timestamps, AgentType, BTreeSet,
     CaptureProvider, CaptureSource, CaptureSourceDescriptor, CaptureSourceKind, Confidence,
     ContextCitationType, Event, EventRole, EventType, FileChangeKind, FileTouched, HistoryRecord,
-    PacketOptions, SearchFilters, SearchResultMode, SearchResultScope, Session, SessionStatus,
-    SyncMetadata, Uuid, LARGE_EVENT_CORPUS_THRESHOLD,
+    MessageProvenance, PacketOptions, SearchFilters, SearchResultMode, SearchResultScope, Session,
+    SessionStatus, SyncMetadata, Uuid, LARGE_EVENT_CORPUS_THRESHOLD,
 };
 
 #[test]
@@ -63,6 +63,7 @@ fn fast_search_prefers_messages_and_summaries_in_event_and_session_modes() {
         };
         store
             .upsert_event(&Event {
+                message_provenance: MessageProvenance::default(),
                 id: event_id,
                 seq: 10 + index as u64,
                 history_record_id: Some(record.id),
@@ -82,6 +83,7 @@ fn fast_search_prefers_messages_and_summaries_in_event_and_session_modes() {
     for index in 0..(LARGE_EVENT_CORPUS_THRESHOLD as usize - matching_event_ids.len()) {
         store
             .upsert_event(&Event {
+                message_provenance: MessageProvenance::default(),
                 id: Uuid::parse_str(&format!("018f45d0-0000-7000-8000-00000007{index:04x}"))
                     .unwrap(),
                 seq: 1_000 + index as u64,
@@ -225,6 +227,7 @@ fn large_agent_history_search_returns_event_hits() {
         };
         store
             .upsert_event(&Event {
+                message_provenance: Default::default(),
                 id: event_id,
                 seq: 10_000 + index,
                 history_record_id: Some(event_record_id),
@@ -345,6 +348,7 @@ fn large_event_fast_search_recalls_cjk_preview_term() {
         };
         store
             .upsert_event(&Event {
+                message_provenance: Default::default(),
                 id: event_id,
                 seq: 50_000 + index,
                 history_record_id: Some(record.id),
@@ -472,6 +476,7 @@ fn clustered_fast_search_pages_past_dominant_first_session() {
         };
         store
             .upsert_event(&Event {
+                message_provenance: Default::default(),
                 id: Uuid::parse_str(&format!("018f45d0-0000-7000-8000-0000001{index:05x}"))
                     .unwrap(),
                 seq: 20_000 + index,
@@ -600,6 +605,7 @@ fn fast_event_search_exposes_custom_history_source_identity() {
         };
         store
             .upsert_event(&Event {
+                message_provenance: Default::default(),
                 id: event_id,
                 seq: 40_000 + index,
                 history_record_id: Some(record.id),
@@ -678,6 +684,7 @@ fn file_filter_matches_event_linked_file_touches_on_fast_path() {
     store.upsert_session(&session).unwrap();
 
     let event = Event {
+        message_provenance: Default::default(),
         id: Uuid::parse_str("018f45d0-0000-7000-8000-00000000f102").unwrap(),
         seq: 7,
         history_record_id: None,
@@ -695,6 +702,7 @@ fn file_filter_matches_event_linked_file_touches_on_fast_path() {
     store.upsert_event(&event).unwrap();
     for index in 0..(LARGE_EVENT_CORPUS_THRESHOLD - 1) {
         let decoy = Event {
+            message_provenance: Default::default(),
             id: Uuid::parse_str(&format!("018f45d0-0000-7000-8000-00000001{index:04x}")).unwrap(),
             seq: 1000 + index as u64,
             history_record_id: None,

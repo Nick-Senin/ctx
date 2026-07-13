@@ -665,6 +665,7 @@ fn schema_v16_rebuilds_provider_checks_with_referenced_sources_and_indexes() {
         store.upsert_session(&session).unwrap();
 
         let event = Event {
+            message_provenance: Default::default(),
             id: new_id(),
             seq: 0,
             history_record_id: None,

@@ -6,6 +6,7 @@ use crate::connection::{
     collect_rows, ms_to_time, nonnegative_i64_to_u64, optional_timestamp_ms, optional_uuid_string,
     parse_json, parse_optional_uuid, parse_text_enum, parse_uuid, timestamp_ms,
 };
+use crate::provenance_merge::merge_message_provenance;
 use crate::search::projections::{
     adjust_semantic_searchable_item_stats, insert_event_search_projection_for_event,
     semantic_searchable_document_count_for_event,
@@ -39,6 +40,7 @@ impl Store {
     }
 
     pub fn upsert_event(&self, event: &Event) -> Result<Uuid> {
+        let provenance = &event.message_provenance;
         let event_id = if let Some(dedupe_key) = &event.dedupe_key {
             reject_provider_event_hash_conflict(&self.conn, dedupe_key)?;
             if let Some(existing_id) = self
@@ -50,9 +52,11 @@ impl Store {
                 )
                 .optional()?
             {
+                merge_message_provenance(&self.conn, existing_id, &event.message_provenance)?;
                 return Ok(existing_id);
+            } else {
+                event.id
             }
-            event.id
         } else {
             event.id
         };
@@ -62,8 +66,8 @@ impl Store {
         self.conn.execute(
                 r#"
                 INSERT INTO events
-                (id, seq, history_record_id, session_id, run_id, event_type, role, occurred_at_ms, capture_source_id, payload_json, payload_blob_id, dedupe_key, visibility, fidelity, sync_state, sync_version, deleted_at_ms, metadata_json)
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)
+                (id, seq, history_record_id, session_id, run_id, event_type, role, occurred_at_ms, capture_source_id, payload_json, payload_blob_id, dedupe_key, visibility, fidelity, sync_state, sync_version, deleted_at_ms, metadata_json, message_authorship, message_authorship_evidence, message_authorship_classifier_version)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)
                 ON CONFLICT(id) DO UPDATE SET
                     seq = excluded.seq,
                     history_record_id = excluded.history_record_id,
@@ -102,12 +106,18 @@ impl Store {
                     event.sync.sync_version as i64,
                     optional_timestamp_ms(event.sync.deleted_at),
                     serde_json::to_string(&event.sync.metadata)?,
+                    provenance.authorship.as_str(),
+                    provenance.evidence.as_str(),
+                    i64::from(provenance.classifier_version),
                 ],
             )?;
+        if previous_searchable_count.is_some() {
+            merge_message_provenance(&self.conn, event_id, provenance)?;
+        }
         upsert_event_search_projection_for_event(&self.conn, event_id, event)?;
         adjust_semantic_searchable_item_stats(
             &self.conn,
-            previous_searchable_count,
+            previous_searchable_count.unwrap_or_default(),
             semantic_searchable_document_count_for_event(event),
         )?;
         if let Some(dedupe_key) = &event.dedupe_key {
@@ -117,13 +127,14 @@ impl Store {
     }
 
     pub fn insert_event_if_absent(&self, event: &Event) -> Result<bool> {
+        let provenance = &event.message_provenance;
         let changed = self
                 .conn
                 .prepare_cached(
                     r#"
                     INSERT OR IGNORE INTO events
-                    (id, seq, history_record_id, session_id, run_id, event_type, role, occurred_at_ms, capture_source_id, payload_json, payload_blob_id, dedupe_key, visibility, fidelity, sync_state, sync_version, deleted_at_ms, metadata_json)
-                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)
+                    (id, seq, history_record_id, session_id, run_id, event_type, role, occurred_at_ms, capture_source_id, payload_json, payload_blob_id, dedupe_key, visibility, fidelity, sync_state, sync_version, deleted_at_ms, metadata_json, message_authorship, message_authorship_evidence, message_authorship_classifier_version)
+                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)
                     "#,
                 )?
                 .execute(params![
@@ -145,11 +156,20 @@ impl Store {
                     event.sync.sync_version as i64,
                     optional_timestamp_ms(event.sync.deleted_at),
                     serde_json::to_string(&event.sync.metadata)?,
+                    provenance.authorship.as_str(),
+                    provenance.evidence.as_str(),
+                    i64::from(provenance.classifier_version),
                 ])?;
         if changed == 0 {
             if let Some(dedupe_key) = &event.dedupe_key {
                 reject_provider_event_hash_conflict(&self.conn, dedupe_key)?;
             }
+            let existing_id = if let Some(dedupe_key) = &event.dedupe_key {
+                self.event_id_by_dedupe_key(dedupe_key)?
+            } else {
+                event.id
+            };
+            merge_message_provenance(&self.conn, existing_id, &event.message_provenance)?;
         }
         if changed > 0 {
             insert_event_search_projection_for_event(&self.conn, event)?;
@@ -481,12 +501,17 @@ pub(crate) fn parse_provider_event_dedupe_key(
 
 pub(crate) fn event_select_sql(tail: &str) -> String {
     format!(
-        "SELECT id, seq, history_record_id, session_id, run_id, event_type, role, occurred_at_ms, capture_source_id, payload_json, payload_blob_id, dedupe_key, visibility, fidelity, sync_state, sync_version, deleted_at_ms, metadata_json FROM events {tail}"
+        "SELECT id, seq, history_record_id, session_id, run_id, event_type, role, occurred_at_ms, capture_source_id, payload_json, payload_blob_id, dedupe_key, visibility, fidelity, sync_state, sync_version, deleted_at_ms, metadata_json, message_authorship, message_authorship_evidence, message_authorship_classifier_version FROM events {tail}"
     )
 }
 
 pub(crate) fn event_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Event> {
     Ok(Event {
+        message_provenance: ctx_history_core::MessageProvenance {
+            authorship: parse_text_enum(row.get::<_, String>(18)?)?,
+            evidence: row.get(19)?,
+            classifier_version: nonnegative_i64_to_u64(row.get(20)?)? as u32,
+        },
         id: parse_uuid(row.get::<_, String>(0)?)?,
         seq: nonnegative_i64_to_u64(row.get(1)?)?,
         history_record_id: parse_optional_uuid(row.get(2)?)?,

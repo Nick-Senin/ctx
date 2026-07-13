@@ -180,6 +180,7 @@ impl ProviderCaptureAdapter for CodexHistoryJsonlAdapter {
                             }),
                         },
                         event: Some(ProviderEventEnvelope {
+                            message_provenance: Default::default(),
                             provider_event_index: (line_number - 1) as u64,
                             provider_event_hash: None,
                             cursor: Some(format!("line:{line_number}")),

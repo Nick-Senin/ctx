@@ -108,9 +108,9 @@ pub use dtos::{
     ContextCitationType, ContextLinks, ContextPagination, ContextTruncation, Event, EventRole,
     EventType, FileChangeKind, FileTouched, HistoryRecord, HistoryRecordLink,
     HistoryRecordLinkTargetType, HistoryRecordLinkType, HistoryRecordMetadata, HistoryRecordStatus,
-    HistoryRecordTag, RecordEdge, RecordEdgeType, Run, RunStatus, RunType, Session, SessionEdge,
-    SessionEdgeType, SessionStatus, Summary, SummaryKind, Tag, TagKind, VcsChange, VcsChangeKind,
-    VcsHost, VcsKind, VcsWorkspace,
+    HistoryRecordTag, MessageAuthorship, MessageProvenance, RecordEdge, RecordEdgeType, Run,
+    RunStatus, RunType, Session, SessionEdge, SessionEdgeType, SessionStatus, Summary, SummaryKind,
+    Tag, TagKind, VcsChange, VcsChangeKind, VcsHost, VcsKind, VcsWorkspace,
 };
 pub use history_jsonl::{
     CtxHistoryJsonlEdgeRecord, CtxHistoryJsonlEventRecord, CtxHistoryJsonlFileTouchRecord,

@@ -647,6 +647,7 @@ pub(crate) fn codex_provider_event(
     metadata: Value,
 ) -> ProviderEventEnvelope {
     ProviderEventEnvelope {
+        message_provenance: Default::default(),
         provider_event_index: (line_number - 1) as u64,
         provider_event_hash: None,
         cursor: Some(format!("line:{line_number}")),

@@ -72,6 +72,7 @@ fn search_filters_and_citations_expose_source_metadata() {
     store.upsert_session(&session).unwrap();
 
     let event = Event {
+        message_provenance: Default::default(),
         id: Uuid::parse_str("018f45d0-0000-7000-8000-000000000403").unwrap(),
         seq: 401,
         history_record_id: Some(record.id),
@@ -372,6 +373,7 @@ fn search_filters_custom_history_source_identity() {
     store.upsert_session(&session).unwrap();
 
     let event = Event {
+        message_provenance: Default::default(),
         id: Uuid::parse_str("018f45d0-0000-7000-8000-000000000453").unwrap(),
         seq: 451,
         history_record_id: Some(record.id),

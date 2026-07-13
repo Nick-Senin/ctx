@@ -405,6 +405,7 @@ pub(crate) fn warp_message_event(
         message.id.clone()
     };
     ProviderEventEnvelope {
+        message_provenance: Default::default(),
         provider_event_index,
         provider_event_hash: Some(message_id.clone()),
         cursor: Some(format!("agent_task:{task_id}:message:{message_index}")),

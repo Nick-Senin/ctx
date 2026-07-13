@@ -376,6 +376,7 @@ pub(crate) fn native_event(draft: NativeEventDraft) -> ProviderEventEnvelope {
         provider_policy_event_text(draft.event_type, &draft.text, &draft.body);
     let body = provider_policy_body(draft.event_type, &draft.body);
     ProviderEventEnvelope {
+        message_provenance: Default::default(),
         provider_event_index: draft.provider_event_index,
         provider_event_hash: draft.provider_event_hash,
         cursor: Some(draft.cursor),

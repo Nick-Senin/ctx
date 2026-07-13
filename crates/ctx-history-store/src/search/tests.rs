@@ -44,6 +44,7 @@ fn sync_metadata() -> SyncMetadata {
 
 fn local_preview_event(seq: u64, text: &str) -> Event {
     Event {
+        message_provenance: Default::default(),
         id: new_id(),
         seq,
         history_record_id: None,
@@ -67,6 +68,7 @@ fn policy_event(
     payload: serde_json::Value,
 ) -> Event {
     Event {
+        message_provenance: Default::default(),
         id: new_id(),
         seq,
         history_record_id: None,

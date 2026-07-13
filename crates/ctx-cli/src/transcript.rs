@@ -494,6 +494,7 @@ pub(crate) fn event_window_json(
 
 pub(crate) fn transcript_event_json(store: &Store, event: &Event) -> Value {
     let session = event.session_id.and_then(|id| store.get_session(id).ok());
+    let provenance = &event.message_provenance;
     compact_json(json!({
         "ctx_event_id": event.id,
         "item_id": event.id,
@@ -506,6 +507,9 @@ pub(crate) fn transcript_event_json(store: &Store, event: &Event) -> Value {
         "sequence": event.seq,
         "event_type": event.event_type,
         "role": event.role,
+        "message_authorship": provenance.authorship,
+        "message_authorship_evidence": provenance.evidence,
+        "message_authorship_classifier_version": provenance.classifier_version,
         "occurred_at": event.occurred_at,
         "source_id": event.capture_source_id,
         "source_path": source_path_for(store, event.capture_source_id),
@@ -756,10 +760,13 @@ impl ShowDto {
 mod tests {
     use super::*;
     use chrono::{DateTime, Utc};
-    use ctx_history_core::{Fidelity, SyncMetadata, SyncState, Visibility};
+    use ctx_history_core::{
+        Fidelity, MessageAuthorship, MessageProvenance, SyncMetadata, SyncState, Visibility,
+    };
 
     fn test_event() -> Event {
         Event {
+            message_provenance: Default::default(),
             id: Uuid::parse_str("018f45d0-0000-7000-8000-000000000010").unwrap(),
             seq: 1,
             history_record_id: None,
@@ -794,5 +801,26 @@ mod tests {
 
         assert!(content.contains("local show payload should render"));
         assert!(preview.contains("local show payload"));
+    }
+
+    #[test]
+    fn transcript_uses_hydrated_event_provenance_without_store_lookup() {
+        let temp = tempfile::tempdir().unwrap();
+        let store = Store::open(temp.path().join("work.sqlite")).unwrap();
+        let mut event = test_event();
+        event.message_provenance = MessageProvenance {
+            authorship: MessageAuthorship::Human,
+            evidence: "provider_prompt_log".to_owned(),
+            classifier_version: 7,
+        };
+
+        let rendered = transcript_event_json(&store, &event);
+
+        assert_eq!(rendered["message_authorship"], "human");
+        assert_eq!(
+            rendered["message_authorship_evidence"],
+            "provider_prompt_log"
+        );
+        assert_eq!(rendered["message_authorship_classifier_version"], 7);
     }
 }

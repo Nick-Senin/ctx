@@ -1478,9 +1478,9 @@ fn semantic_lookup_event_parts(event_type: EventType, role: Option<&str>) -> boo
 pub(crate) fn semantic_searchable_event_count_from_stored_event(
     conn: &Connection,
     event_id: Uuid,
-) -> Result<usize> {
+) -> Result<Option<usize>> {
     if !table_exists(conn, "events")? {
-        return Ok(0);
+        return Ok(None);
     }
     let row = conn
         .query_row(
@@ -1519,10 +1519,10 @@ pub(crate) fn semantic_searchable_event_count_from_stored_event(
         deleted_at_ms,
     )) = row
     else {
-        return Ok(0);
+        return Ok(None);
     };
     let payload: serde_json::Value = serde_json::from_str(&payload_json)?;
-    Ok(usize::from(semantic_searchable_event_parts(
+    Ok(Some(usize::from(semantic_searchable_event_parts(
         &payload,
         parse_text_enum::<RedactionState>(redaction_state)?,
         parse_text_enum::<EventType>(event_type)?,
@@ -1530,7 +1530,7 @@ pub(crate) fn semantic_searchable_event_count_from_stored_event(
         parse_text_enum::<Visibility>(visibility)?,
         parse_text_enum::<SyncState>(sync_state)?,
         deleted_at_ms.is_some(),
-    )))
+    ))))
 }
 
 pub(crate) fn semantic_searchable_event_count_for_event(event: &Event) -> usize {
@@ -1548,7 +1548,7 @@ pub(crate) fn semantic_searchable_event_count_for_event(event: &Event) -> usize 
 pub(crate) fn semantic_searchable_document_count_from_stored_event(
     conn: &Connection,
     event_id: Uuid,
-) -> Result<usize> {
+) -> Result<Option<usize>> {
     semantic_searchable_event_count_from_stored_event(conn, event_id)
 }
 

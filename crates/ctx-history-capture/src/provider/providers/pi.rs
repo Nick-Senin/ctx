@@ -322,6 +322,7 @@ pub(crate) fn pi_session_event(
     let legacy_provider_event_index = provider_event_index;
 
     Ok(ProviderEventEnvelope {
+        message_provenance: Default::default(),
         provider_event_index,
         provider_event_hash: None,
         cursor: entry.get("id").and_then(Value::as_str).map(str::to_owned),

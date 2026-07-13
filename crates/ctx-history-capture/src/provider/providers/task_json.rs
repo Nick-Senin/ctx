@@ -737,6 +737,7 @@ pub(crate) fn task_json_event(
     let event_id = format!("{task_id}:{}:{native_id}", input.source);
 
     ProviderEventEnvelope {
+        message_provenance: Default::default(),
         provider_event_index: event_ordinal as u64,
         provider_event_hash: Some(event_id.clone()),
         cursor: Some(event_id.clone()),

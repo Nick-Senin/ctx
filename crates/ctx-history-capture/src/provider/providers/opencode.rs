@@ -1313,6 +1313,7 @@ pub(crate) fn opencode_event(
         })
     };
     ProviderEventEnvelope {
+        message_provenance: Default::default(),
         provider_event_index,
         provider_event_hash: Some(row.id.clone()),
         cursor: Some(opencode_event_cursor(row, data)),

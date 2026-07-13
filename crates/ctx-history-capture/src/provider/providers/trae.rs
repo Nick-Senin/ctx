@@ -591,6 +591,7 @@ pub(crate) fn trae_event(
         provider_policy_event_text(event_type, &event.text, &event.raw_message);
     let event_id = format!("{provider_session_id}:{}", event.native_message_id);
     ProviderEventEnvelope {
+        message_provenance: Default::default(),
         provider_event_index: event.provider_event_index,
         provider_event_hash: Some(event_id.clone()),
         cursor: Some(format!("{chat_key}:{event_id}")),

@@ -252,6 +252,7 @@ pub(crate) fn claude_event(
     let (text, truncated, retention) = provider_policy_event_text(event_type, &text, content);
 
     Some(ProviderEventEnvelope {
+        message_provenance: Default::default(),
         provider_event_index: (line_number - 1) as u64,
         provider_event_hash: value.get("uuid").and_then(Value::as_str).map(str::to_owned),
         cursor: value.get("uuid").and_then(Value::as_str).map(str::to_owned),

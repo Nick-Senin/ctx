@@ -1,3 +1,6 @@
+mod authorship_migration;
+#[cfg(test)]
+mod authorship_tests;
 pub(crate) mod ddl;
 pub(crate) mod fts;
 pub(crate) mod indexes;

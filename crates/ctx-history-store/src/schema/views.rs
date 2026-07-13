@@ -29,6 +29,7 @@ FROM sessions s
 LEFT JOIN capture_sources cs ON cs.id = s.capture_source_id
 WHERE s.deleted_at_ms IS NULL;
 
+DROP VIEW IF EXISTS ctx_human_messages;
 DROP VIEW IF EXISTS ctx_events;
 CREATE VIEW ctx_events AS
 SELECT
@@ -47,11 +48,39 @@ SELECT
     cs.raw_source_path AS source_path,
     cs.source_format AS source_format,
     cs.source_root AS source_root,
-    cs.source_identity AS source_identity
+    cs.source_identity AS source_identity,
+    e.message_authorship AS message_authorship,
+    e.message_authorship_evidence AS message_authorship_evidence,
+    e.message_authorship_classifier_version AS message_authorship_classifier_version
 FROM events e
 LEFT JOIN sessions s ON s.id = e.session_id
 LEFT JOIN capture_sources cs ON cs.id = e.capture_source_id
 WHERE e.deleted_at_ms IS NULL;
+
+DROP VIEW IF EXISTS ctx_human_messages;
+CREATE VIEW ctx_human_messages AS
+SELECT
+    ctx_event_id,
+    ctx_session_id,
+    history_record_id,
+    provider,
+    provider_session_id,
+    event_seq,
+    event_type,
+    role,
+    occurred_at_ms,
+    payload_json,
+    fidelity,
+    cwd,
+    source_path,
+    source_format,
+    source_root,
+    source_identity,
+    message_authorship,
+    message_authorship_evidence,
+    message_authorship_classifier_version
+FROM ctx_events
+WHERE event_type = 'message' AND message_authorship = 'human';
 
 DROP VIEW IF EXISTS ctx_files_touched;
 CREATE VIEW ctx_files_touched AS
@@ -127,6 +156,7 @@ pub(crate) fn create_stable_sql_views(conn: &Connection) -> Result<()> {
 pub(crate) fn drop_stable_sql_views(conn: &Connection) -> Result<()> {
     conn.execute_batch(
         r#"
+        DROP VIEW IF EXISTS ctx_human_messages;
         DROP VIEW IF EXISTS ctx_sessions;
         DROP VIEW IF EXISTS ctx_events;
         DROP VIEW IF EXISTS ctx_files_touched;

@@ -1,17 +1,23 @@
 use std::collections::BTreeMap;
 
-use ctx_history_core::{CaptureProvider, Event};
+use ctx_history_core::{CaptureProvider, Event, ProviderEventEnvelope};
 use ctx_history_store::{Store, StoreError};
 use serde_json::Value;
 use uuid::Uuid;
 
-use crate::{CaptureError, Result};
+use crate::{compute_payload_hash, CaptureError, Result};
 
 use super::ids::{
     provider_event_seq, provider_event_uuid, provider_file_touch_uuid, provider_source_event_seq,
     provider_source_event_uuid, provider_source_file_touch_uuid,
 };
 use super::ProviderImportCaches;
+
+/// Hashes the legacy identity projection. Additive normalized fields such as
+/// message provenance must never change provider event IDs or dedupe keys.
+pub(crate) fn provider_event_identity_hash(event: &ProviderEventEnvelope) -> Result<String> {
+    compute_payload_hash(&event.payload)
+}
 
 pub(crate) fn provider_event_exists(store: &Store, dedupe_key: &str) -> Result<bool> {
     match store.event_id_by_dedupe_key(dedupe_key) {

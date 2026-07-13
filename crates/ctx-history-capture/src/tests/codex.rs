@@ -1235,6 +1235,7 @@ fn codex_default_policy_redacts_non_patch_edit_tool_arguments() {
 #[test]
 fn structured_file_touch_extractor_reads_nested_provider_paths() {
     let event = ProviderEventEnvelope {
+        message_provenance: Default::default(),
         provider_event_index: 7,
         provider_event_hash: None,
         cursor: None,
@@ -1305,6 +1306,7 @@ fn structured_file_touch_extractor_reads_nested_provider_paths() {
 #[test]
 fn structured_file_touch_extractor_covers_provider_tool_shapes() {
     let event = ProviderEventEnvelope {
+        message_provenance: Default::default(),
         provider_event_index: 11,
         provider_event_hash: None,
         cursor: None,

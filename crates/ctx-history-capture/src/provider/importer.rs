@@ -15,7 +15,7 @@ use ctx_history_store::{Store, StoreError};
 use serde_json::{json, Value};
 use uuid::Uuid;
 
-use crate::{compute_payload_hash, stable_capture_uuid};
+use crate::stable_capture_uuid;
 
 use crate::provider::file_touches::provider_file_touches_from_event;
 use crate::{
@@ -43,9 +43,9 @@ pub(crate) use cursors::{
     provider_sync_cursor,
 };
 pub(crate) use identity::{
-    pi_existing_event_identity_by_entry_id, provider_event_exists, provider_event_import_identity,
-    provider_file_touch_event_id, provider_file_touch_import_id, provider_session_exists_cached,
-    ProviderEventImportIdentity,
+    pi_existing_event_identity_by_entry_id, provider_event_exists, provider_event_identity_hash,
+    provider_event_import_identity, provider_file_touch_event_id, provider_file_touch_import_id,
+    provider_session_exists_cached, ProviderEventImportIdentity,
 };
 pub(crate) use ids::{
     provider_edge_uuid, provider_scoped_source_identity_key, provider_scoped_source_uuid,
@@ -743,7 +743,7 @@ pub(crate) fn import_provider_capture_line(
         let event_hash = event
             .provider_event_hash
             .clone()
-            .unwrap_or(compute_payload_hash(&payload)?);
+            .unwrap_or(provider_event_identity_hash(event)?);
         let pi_entry_id = event
             .metadata
             .get("entry_id")
@@ -791,6 +791,7 @@ pub(crate) fn import_provider_capture_line(
             event_hash: &event_hash,
         })?;
         let normalized_event = Event {
+            message_provenance: event.message_provenance.clone(),
             id: event_identity.id,
             seq: event_identity.seq,
             history_record_id: options.history_record_id,
@@ -1032,6 +1033,7 @@ pub(crate) fn fixture_line_to_capture(
             metadata: fixture.session.metadata.clone(),
         },
         event: fixture.event.as_ref().map(|event| ProviderEventEnvelope {
+            message_provenance: Default::default(),
             provider_event_index: event.provider_event_index,
             provider_event_hash: event.provider_event_hash.clone(),
             cursor: event.cursor.clone(),

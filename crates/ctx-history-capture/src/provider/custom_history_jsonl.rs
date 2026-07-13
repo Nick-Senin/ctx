@@ -761,6 +761,7 @@ pub(crate) fn custom_history_event_envelope(
     event: &CtxHistoryJsonlEventRecord,
 ) -> ProviderEventEnvelope {
     ProviderEventEnvelope {
+        message_provenance: Default::default(),
         provider_event_index: event.event_index,
         provider_event_hash: event.event_hash.clone(),
         cursor: event.native_cursor.clone(),

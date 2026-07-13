@@ -80,7 +80,7 @@ pub(super) use chrono::{DateTime, Utc};
 pub(super) use ctx_history_core::{
     new_id, AgentType, CaptureProvider, CaptureSource, CaptureSourceDescriptor, CaptureSourceKind,
     Confidence, Event, EventRole, EventType, Fidelity, FileChangeKind, FileTouched,
-    ProviderCaptureEnvelope, ProviderEventEnvelope, ProviderSessionEnvelope,
+    MessageAuthorship, ProviderCaptureEnvelope, ProviderEventEnvelope, ProviderSessionEnvelope,
     ProviderSourceEnvelope, ProviderSourceTrust, Session, SessionStatus,
     PROVIDER_CAPTURE_ENVELOPE_SCHEMA_VERSION,
 };
@@ -270,6 +270,7 @@ pub(super) fn jsonl_line(value: Value) -> String {
 
 pub(super) fn test_provider_event(event_type: EventType) -> ProviderEventEnvelope {
     ProviderEventEnvelope {
+        message_provenance: Default::default(),
         provider_event_index: 0,
         provider_event_hash: Some("event-hash".to_owned()),
         cursor: None,
@@ -1381,6 +1382,7 @@ pub(super) fn provider_collision_capture(
             metadata: json!({}),
         },
         event: Some(ProviderEventEnvelope {
+            message_provenance: Default::default(),
             provider_event_index: 0,
             provider_event_hash: None,
             cursor: None,
