@@ -24,7 +24,7 @@ support matrix is:
 | --- | --- | --- |
 | Codex | Supported | `codex_session_jsonl_tree`, `codex_history_jsonl` |
 | Pi | Supported | `pi_session_jsonl` |
-| Claude | Supported | `claude_projects_jsonl_tree` |
+| Claude | Supported | `claude_projects_jsonl_tree`, `claude_history_jsonl` |
 | OpenCode | Supported | `opencode_sqlite` |
 | Kilo Code | Supported | `kilo_sqlite` |
 | MiMo Code | Supported | `mimocode_sqlite` |
@@ -69,6 +69,11 @@ and `importable` fields. A source is importable only when provider-specific
 transcript files exist and match the documented format. NanoClaw remains
 explicit-import only; it is not included in `ctx import --all` or pre-search
 refresh.
+
+Claude prompt history at `~/.claude/history.jsonl` is an experimental local
+adapter for operator prompts. Full conversations continue to come from the
+project transcript tree. See [message authorship](message-authorship.md) for
+the trust boundary between these sources.
 
 ## Local Checks
 

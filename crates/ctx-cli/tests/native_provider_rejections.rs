@@ -84,6 +84,40 @@ fn mixed_source_replay_remains_completed_with_rejections() {
 }
 
 #[test]
+fn claude_history_mixed_input_is_completed_with_rejections() {
+    let temp = tempdir();
+    let history = temp.path().join("history.jsonl");
+    fs::write(
+        &history,
+        concat!(
+            r#"{"display":"valid Claude prompt","pastedContents":{},"timestamp":1783684800789,"project":"/mixed-project","sessionId":"00000000-0000-4000-8000-000000000002"}"#,
+            "\n",
+            "{malformed\n",
+        ),
+    )
+    .unwrap();
+
+    let report = json_output(ctx(&temp).args([
+        "import",
+        "--provider",
+        "claude",
+        "--path",
+        history.to_str().unwrap(),
+        "--json",
+        "--progress",
+        "none",
+    ]));
+    assert_eq!(report["outcome"], "completed_with_rejections", "{report:#}");
+    assert_eq!(report["failure_scope"], "record", "{report:#}");
+    assert_eq!(report["totals"]["imported_events"], 1, "{report:#}");
+    assert_eq!(report["totals"]["rejected_records"], 1, "{report:#}");
+    assert_eq!(
+        report["sources"][0]["status"], "completed_with_rejections",
+        "{report:#}"
+    );
+}
+
+#[test]
 fn codex_mixed_session_replay_remains_completed_with_rejections() {
     let temp = tempdir();
     let session = temp.path().join("codex-mixed-replay.jsonl");

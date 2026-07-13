@@ -1,6 +1,7 @@
 mod support;
 
 mod authorship;
+mod claude_history;
 mod codex;
 mod codex_catalog;
 mod custom_history;

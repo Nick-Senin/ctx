@@ -33,11 +33,18 @@ const PI_DEFAULTS: &[ProviderDefaultLocation] = &[
     },
 ];
 
-const CLAUDE_DEFAULTS: &[ProviderDefaultLocation] = &[ProviderDefaultLocation {
-    path_components: &[".claude", "projects"],
-    source_format: "claude_projects_jsonl_tree",
-    source_kind: ProviderSourceKind::NativeHistory,
-}];
+const CLAUDE_DEFAULTS: &[ProviderDefaultLocation] = &[
+    ProviderDefaultLocation {
+        path_components: &[".claude", "projects"],
+        source_format: "claude_projects_jsonl_tree",
+        source_kind: ProviderSourceKind::NativeHistory,
+    },
+    ProviderDefaultLocation {
+        path_components: &[".claude", "history.jsonl"],
+        source_format: "claude_history_jsonl",
+        source_kind: ProviderSourceKind::NativeHistory,
+    },
+];
 
 const OPENCODE_DEFAULTS: &[ProviderDefaultLocation] = &[ProviderDefaultLocation {
     path_components: &[".local", "share", "opencode", "opencode.db"],

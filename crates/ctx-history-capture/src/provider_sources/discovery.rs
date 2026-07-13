@@ -844,7 +844,13 @@ pub fn provider_source_for_path(provider: CaptureProvider, path: PathBuf) -> Pro
             }
         }
         CaptureProvider::Pi => "pi_session_jsonl",
-        CaptureProvider::Claude => "claude_projects_jsonl_tree",
+        CaptureProvider::Claude => {
+            if path.file_name().and_then(|name| name.to_str()) == Some("history.jsonl") {
+                "claude_history_jsonl"
+            } else {
+                "claude_projects_jsonl_tree"
+            }
+        }
         CaptureProvider::OpenCode => "opencode_sqlite",
         CaptureProvider::Kilo => "kilo_sqlite",
         CaptureProvider::KiroCli => "kiro_cli_sqlite",

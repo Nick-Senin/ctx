@@ -177,16 +177,31 @@ fn import_one_source_inner_batched(
                 },
             )
             .map_err(anyhow::Error::from),
-            CaptureProvider::Claude => import_claude_projects_jsonl_tree(
-                &source.path,
-                store,
-                ClaudeProjectsImportOptions {
-                    source_path: Some(source.path.clone()),
-                    history_record_id: Some(record_id),
-                    ..ClaudeProjectsImportOptions::default()
-                },
-            )
-            .map_err(anyhow::Error::from),
+            CaptureProvider::Claude => {
+                if source.source_format == "claude_history_jsonl" {
+                    import_claude_history_jsonl(
+                        &source.path,
+                        store,
+                        ClaudeHistoryImportOptions {
+                            source_path: Some(source.path.clone()),
+                            history_record_id: Some(record_id),
+                            ..ClaudeHistoryImportOptions::default()
+                        },
+                    )
+                    .map_err(anyhow::Error::from)
+                } else {
+                    import_claude_projects_jsonl_tree(
+                        &source.path,
+                        store,
+                        ClaudeProjectsImportOptions {
+                            source_path: Some(source.path.clone()),
+                            history_record_id: Some(record_id),
+                            ..ClaudeProjectsImportOptions::default()
+                        },
+                    )
+                    .map_err(anyhow::Error::from)
+                }
+            }
             CaptureProvider::Cline => import_cline_task_json_history(
                 &source.path,
                 store,

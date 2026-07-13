@@ -1,6 +1,7 @@
 pub(crate) mod adapter;
 pub(crate) mod adapter_impls;
 pub mod api;
+pub(crate) mod claude_history;
 pub(crate) mod codex;
 pub(crate) mod custom_history_jsonl;
 pub(crate) mod file_touches;

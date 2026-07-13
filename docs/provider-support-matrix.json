@@ -99,7 +99,19 @@
           "notes": [
             "Reads Claude Code project JSONL transcripts under ~/.claude/projects, including nested subagent transcripts when present."
           ]
+        },
+        {
+          "kind": "native_import",
+          "source_format": "claude_history_jsonl",
+          "fidelity": "partial",
+          "notes": [
+            "Reads the local Claude Code operator prompt-recall log when present."
+          ]
         }
+      ],
+      "history_locations": [
+        "~/.claude/projects",
+        "~/.claude/history.jsonl"
       ],
       "imports_existing_history": true,
       "captures_new_runs_passively": false,

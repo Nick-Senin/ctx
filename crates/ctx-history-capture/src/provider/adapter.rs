@@ -175,6 +175,9 @@ pub struct PiSessionJsonlAdapter;
 pub struct ClaudeProjectsJsonlAdapter;
 
 #[derive(Debug, Clone, Copy, Default)]
+pub struct ClaudeHistoryJsonlAdapter;
+
+#[derive(Debug, Clone, Copy, Default)]
 pub struct ClineTaskJsonAdapter;
 
 #[derive(Debug, Clone, Copy, Default)]

@@ -30,6 +30,9 @@ pub(super) fn default_location_import_probe(
         CaptureProvider::KiroCli => path_is_file_probe(path),
         CaptureProvider::Crush => path_is_file_probe(path),
         CaptureProvider::Goose => path_is_file_probe(path),
+        CaptureProvider::Claude if location.source_format == "claude_history_jsonl" => {
+            path_is_file_probe(path)
+        }
         CaptureProvider::Claude => has_jsonl_file_under_matching(path, 10_000, |_| true),
         CaptureProvider::OpenClaw => has_openclaw_session_jsonl(path, 10_000),
         CaptureProvider::Hermes => path_is_file_probe(path),

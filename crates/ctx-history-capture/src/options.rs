@@ -86,6 +86,7 @@ import_options!(
     CodexHistoryImportOptions,
     PiSessionImportOptions,
     ClaudeProjectsImportOptions,
+    ClaudeHistoryImportOptions,
     ClineTaskJsonImportOptions,
     RooTaskJsonImportOptions,
     CodeBuddyImportOptions,

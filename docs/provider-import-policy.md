@@ -110,7 +110,7 @@ Secondary traits are noted only to guide tests and hardening work.
 | --- | --- | --- | --- |
 | Codex | `codex_session_jsonl_tree`, `codex_history_jsonl` | JSONL transcript stream/tree | Session tree plus legacy history JSONL. |
 | Pi | `pi_session_jsonl` | JSONL transcript stream/tree | Single-provider JSONL sessions, including OMP-compatible paths. |
-| Claude | `claude_projects_jsonl_tree` | JSONL transcript stream/tree | Project tree of JSONL transcripts. |
+| Claude | `claude_projects_jsonl_tree`, `claude_history_jsonl` | JSONL transcript stream/tree | Project transcripts plus the local operator prompt-recall log. |
 | OpenCode | `opencode_sqlite` | SQLite message store | Current schemas may split messages and parts. |
 | Kilo Code | `kilo_sqlite` | SQLite message store | Current schemas may split messages and parts. |
 | Kiro CLI | `kiro_cli_sqlite` | SQLite message store | SQLite conversation key/value rows containing message JSON. |
