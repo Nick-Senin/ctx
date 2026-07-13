@@ -13,7 +13,28 @@ pub(crate) const MAX_OPENCLAW_SESSION_INDEX_BYTES: usize = 1024 * 1024;
 pub(crate) const MAX_OPENCLAW_SESSION_INDEX_PATHS: usize = 256;
 pub(crate) const MAX_OPENCLAW_SESSION_INDEX_VISITED_PATHS: usize = 4096;
 pub(crate) const CODEX_SESSION_SOURCE_FORMAT: &str = "codex_session_jsonl";
+/// Bump whenever native message-authorship classification semantics change.
+/// Import inventories persist this revision so unchanged transcripts are
+/// reprocessed instead of retaining stale provenance.
+pub const MESSAGE_AUTHORSHIP_CLASSIFIER_REVISION: u32 = 1;
+
+/// Returns the classifier revision only for sources whose native structure can
+/// change effective authorship. Other provider inventories must remain stable
+/// when authorship classifiers evolve.
+pub fn message_authorship_classifier_revision(source_format: &str) -> Option<u32> {
+    matches!(
+        source_format,
+        CODEX_SESSION_SOURCE_FORMAT
+            | "codex_session_jsonl_tree"
+            | "codex_history_jsonl"
+            | CLAUDE_PROJECTS_SOURCE_FORMAT
+            | CLAUDE_HISTORY_SOURCE_FORMAT
+            | "opencode_sqlite"
+    )
+    .then_some(MESSAGE_AUTHORSHIP_CLASSIFIER_REVISION)
+}
 pub(crate) const CLAUDE_PROJECTS_SOURCE_FORMAT: &str = "claude_projects_jsonl_tree";
+pub(crate) const CLAUDE_HISTORY_SOURCE_FORMAT: &str = "claude_history_jsonl";
 pub(crate) const CLINE_TASK_JSON_SOURCE_FORMAT: &str = "cline_task_directory_json";
 pub(crate) const ROO_TASK_JSON_SOURCE_FORMAT: &str = "roo_task_directory_json";
 pub(crate) const CODEBUDDY_SOURCE_FORMAT: &str = "codebuddy_history_json";

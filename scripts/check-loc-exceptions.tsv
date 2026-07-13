@@ -2,7 +2,7 @@ path	max_lines	kind	reason	review_after
 crates/ctx-history-capture/src/tests/native_json.rs	2814	test	native JSON import regression matrix with shared fixtures; split after provider fixture consolidation lands	2026-10-01
 crates/ctx-history-capture/src/tests/native_providers.rs	2435	test	native provider parser matrix with cross-provider fixture setup; split after provider fixture consolidation lands	2026-10-01
 crates/ctx-cli/src/integrations/mcp.rs	1623	source	MCP config writer matrix spans many agent formats; split after the initial integrations installer surface stabilizes	2026-10-01
-crates/ctx-history-capture/src/provider/providers/opencode.rs	1447	source	OpenCode/Kilo provider compatibility remains centralized; provenance extraction leaves four mechanical propagation lines	2026-10-01
+crates/ctx-history-capture/src/provider/providers/opencode.rs	1450	source	OpenCode/Kilo provider compatibility remains centralized; provenance extraction leaves four mechanical propagation lines	2026-10-01
 crates/ctx-history-capture/src/tests/native_sqlite.rs	1754	test	native SQLite provider regression matrix shares setup across formats; split after fixture helpers are shared	2026-10-01
 crates/ctx-history-capture/src/provider/native.rs	1147	source	native provider discovery dispatcher remains centralized; one provenance field is mechanical propagation	2026-10-01
 crates/ctx-history-capture/src/provider/importer.rs	1064	source	native provider import orchestration remains centralized; two provenance fields are mechanical propagation	2026-10-01

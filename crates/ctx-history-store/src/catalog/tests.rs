@@ -234,6 +234,45 @@ fn catalog_session_upsert_skips_unchanged_rows() {
 }
 
 #[test]
+fn catalog_classifier_revision_change_marks_same_stat_session_pending() {
+    let temp = tempdir();
+    let store = Store::open(temp.path().join("work.sqlite")).unwrap();
+    let cataloged_at_ms = timestamp_ms(fixed_time());
+    let source_path = "/home/user/.codex/sessions/2026/06/24/rollout.jsonl";
+    let mut session = catalog_session(source_path, "codex-session-1", cataloged_at_ms);
+    session.metadata["message_authorship_classifier_revision"] = serde_json::json!(1);
+    store
+        .upsert_catalog_sessions(std::slice::from_ref(&session))
+        .unwrap();
+    store
+        .mark_catalog_source_indexed(
+            CaptureProvider::Codex,
+            CatalogSourceIndexUpdate {
+                source_root: "/home/user/.codex/sessions",
+                source_path,
+                file_size_bytes: session.file_size_bytes,
+                file_modified_at_ms: session.file_modified_at_ms,
+                file_sha256: Some("abc123"),
+                event_count: Some(1),
+                indexed_at_ms: cataloged_at_ms + 1,
+            },
+        )
+        .unwrap();
+
+    session.metadata["message_authorship_classifier_revision"] = serde_json::json!(2);
+    store
+        .upsert_catalog_sessions(std::slice::from_ref(&session))
+        .unwrap();
+
+    assert_eq!(
+        store
+            .list_pending_catalog_sessions(CaptureProvider::Codex, "/home/user/.codex/sessions")
+            .unwrap(),
+        vec![session]
+    );
+}
+
+#[test]
 fn events_for_session_window_returns_bounded_neighbors() {
     let temp = tempdir();
     let store = Store::open(temp.path().join("work.sqlite")).unwrap();

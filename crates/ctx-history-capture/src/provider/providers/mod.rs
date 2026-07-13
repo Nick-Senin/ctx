@@ -19,6 +19,7 @@ pub(crate) mod nanoclaw;
 pub(crate) mod native_jsonl;
 pub(crate) mod openclaw;
 pub(crate) mod opencode;
+pub(crate) mod opencode_authorship;
 pub(crate) mod openhands;
 pub(crate) mod pi;
 pub(crate) mod real_content;

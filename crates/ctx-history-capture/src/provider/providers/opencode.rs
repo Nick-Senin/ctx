@@ -28,6 +28,7 @@ use crate::provider::native::{
     provider_policy_event_text, provider_required_timestamp_millis, provider_role,
     provider_value_text,
 };
+use crate::provider::providers::opencode_authorship::opencode_message_provenance;
 use crate::provider::providers::real_content::text_has_real_content;
 use crate::provider::sqlite::{sqlite_is_too_big, sqlite_row_ids_with_oversized_value};
 use crate::{
@@ -891,6 +892,7 @@ pub(crate) fn opencode_message_part_rows(
             "message_id": message_id,
             "part_id": part_id,
             "part_type": part_type,
+            "synthetic": part.data.get("synthetic").cloned(),
             "file_touches": file_touches,
         })
         .to_string();
@@ -1244,6 +1246,7 @@ pub(crate) fn opencode_event(
     provider_event_index: u64,
     dialect: &OpenCodeSqliteDialect,
 ) -> ProviderEventEnvelope {
+    let message_provenance = opencode_message_provenance(data);
     let is_message_part = data.get("source_table").and_then(Value::as_str) == Some("message+part");
     let event_type = opencode_event_type(&row.entry_type, data);
     let role = Some(provider_role(Some(&row.entry_type)));
@@ -1313,7 +1316,7 @@ pub(crate) fn opencode_event(
         })
     };
     ProviderEventEnvelope {
-        message_provenance: Default::default(),
+        message_provenance,
         provider_event_index,
         provider_event_hash: Some(row.id.clone()),
         cursor: Some(opencode_event_cursor(row, data)),

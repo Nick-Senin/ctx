@@ -1,5 +1,6 @@
 mod support;
 
+mod authorship;
 mod codex;
 mod codex_catalog;
 mod custom_history;

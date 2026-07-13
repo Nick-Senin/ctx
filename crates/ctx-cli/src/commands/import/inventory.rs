@@ -7,8 +7,8 @@ use anyhow::{Context, Result};
 use serde_json::{json, Value};
 
 use ctx_history_capture::{
-    catalog_codex_session_tree, CatalogSummary, CodexSessionCatalogOptions, ProviderImportSupport,
-    ProviderSourceStatus,
+    catalog_codex_session_tree, message_authorship_classifier_revision, CatalogSummary,
+    CodexSessionCatalogOptions, ProviderImportSupport, ProviderSourceStatus,
 };
 use ctx_history_core::CaptureProvider;
 use ctx_history_store::{SourceImportFile, Store};
@@ -198,6 +198,20 @@ fn source_stats_from_import_files(files: &[SourceImportFile]) -> SourceStats {
 fn source_root_import_file(source: &SourceInfo, stats: SourceStats) -> Result<SourceImportFile> {
     let metadata = fs::metadata(&source.path)
         .with_context(|| format!("stat import source {}", source.path.display()))?;
+    let mut inventory_metadata = json!({
+        "inventory_unit": "source_root",
+        "source_files": stats.files,
+        "change_token_v1": stats
+            .change_token
+            .unwrap_or_default()
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<Vec<_>>()
+            .join(""),
+    });
+    if let Some(revision) = message_authorship_classifier_revision(source.source_format) {
+        inventory_metadata["message_authorship_classifier_revision"] = json!(revision);
+    }
     Ok(SourceImportFile {
         provider: source.provider,
         source_format: source.source_format.to_owned(),
@@ -206,16 +220,6 @@ fn source_root_import_file(source: &SourceInfo, stats: SourceStats) -> Result<So
         file_size_bytes: stats.bytes,
         file_modified_at_ms: system_time_ms(metadata.modified().unwrap_or(UNIX_EPOCH)),
         observed_at_ms: system_time_ms(SystemTime::now()),
-        metadata: json!({
-            "inventory_unit": "source_root",
-            "source_files": stats.files,
-            "change_token_v1": stats
-                .change_token
-                .unwrap_or_default()
-                .iter()
-                .map(|byte| format!("{byte:02x}"))
-                .collect::<Vec<_>>()
-                .join(""),
-        }),
+        metadata: inventory_metadata,
     })
 }

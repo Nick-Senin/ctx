@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use super::*;
 use crate::commands::import::catalog::system_time_ms;
+use ctx_history_capture::message_authorship_classifier_revision;
 
 pub(crate) fn persist_source_import_files(
     store: &Store,
@@ -68,7 +69,10 @@ pub(crate) fn collect_source_import_files(source: &SourceInfo) -> Result<Vec<Sou
             file_size_bytes: metadata.len(),
             file_modified_at_ms: system_time_ms(metadata.modified().unwrap_or(UNIX_EPOCH)),
             observed_at_ms,
-            metadata: json!({}),
+            metadata: message_authorship_classifier_revision(source.source_format).map_or_else(
+                || json!({}),
+                |revision| json!({"message_authorship_classifier_revision": revision}),
+            ),
         });
     }
     Ok(files)

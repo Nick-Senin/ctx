@@ -17,7 +17,7 @@ use crate::common::io::{
 use crate::common::time::{parse_rfc3339_utc, system_time_ms};
 use crate::{
     CaptureError, CatalogSummary, CodexSessionCatalogOptions, ProviderImportFailure, Result,
-    CODEX_SESSION_SOURCE_FORMAT,
+    CODEX_SESSION_SOURCE_FORMAT, MESSAGE_AUTHORSHIP_CLASSIFIER_REVISION,
 };
 
 use crate::provider::codex::session::{apply_codex_session_import_bounds, contains_bytes};
@@ -180,6 +180,11 @@ pub(crate) fn cached_catalog_session_if_unchanged(
         && session.source_format == CODEX_SESSION_SOURCE_FORMAT
         && session.file_size_bytes == metadata.len()
         && session.file_modified_at_ms == modified_at_ms
+        && session
+            .metadata
+            .get("message_authorship_classifier_revision")
+            .and_then(Value::as_u64)
+            == Some(u64::from(MESSAGE_AUTHORSHIP_CLASSIFIER_REVISION))
     {
         let mut session = session.clone();
         session.cataloged_at_ms = cataloged_at_ms;
@@ -361,6 +366,7 @@ pub(crate) fn catalog_codex_session_file(
         file_modified_at_ms: system_time_ms(metadata.modified().unwrap_or(UNIX_EPOCH)),
         cataloged_at_ms,
         metadata: json!({
+            "message_authorship_classifier_revision": MESSAGE_AUTHORSHIP_CLASSIFIER_REVISION,
             "originator": payload.and_then(|payload| payload.get("originator")).and_then(Value::as_str),
             "cli_version": payload.and_then(|payload| payload.get("cli_version")).and_then(Value::as_str),
             "model_provider": payload.and_then(|payload| payload.get("model_provider")).and_then(Value::as_str),

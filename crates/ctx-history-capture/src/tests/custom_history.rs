@@ -59,6 +59,11 @@ fn codex_history_import_is_prompt_only_summary_fidelity_and_idempotent() {
     assert_eq!(events[0].role, Some(EventRole::User));
     assert_eq!(events[0].event_type, EventType::Message);
     assert_eq!(
+        events[0].message_provenance.authorship,
+        MessageAuthorship::Human
+    );
+    assert_eq!(events[0].message_provenance.evidence, "provider_prompt_log");
+    assert_eq!(
         events[0].sync.metadata["source_format"].as_str(),
         Some("codex_history_jsonl")
     );
@@ -76,6 +81,36 @@ fn codex_history_import_is_prompt_only_summary_fidelity_and_idempotent() {
         .unwrap()
         .unwrap();
     assert_eq!(cursor.cursor, "line:3");
+}
+
+#[test]
+fn codex_prompt_log_keeps_human_instruction_lookalike_confirmed() {
+    let temp = tempdir();
+    let path = temp.path().join("codex-history-lookalike.jsonl");
+    fs::write(
+        &path,
+        serde_json::json!({
+            "session_id":"lookalike", "ts":1781460912_i64,
+            "text":"<environment_context>AGENTS.md approval required</environment_context>"
+        })
+        .to_string()
+            + "\n",
+    )
+    .unwrap();
+    let mut store = Store::open(temp.path().join("work.sqlite")).unwrap();
+    import_codex_history_jsonl(&path, &mut store, CodexHistoryImportOptions::default()).unwrap();
+    let session_id = provider_import_session_id_for_path(
+        CaptureProvider::Codex,
+        "codex_history_jsonl",
+        &path,
+        "lookalike",
+    );
+    let events = store.events_for_session(session_id).unwrap();
+    assert_eq!(events.len(), 1);
+    assert_eq!(
+        events[0].message_provenance.authorship,
+        MessageAuthorship::Human
+    );
 }
 
 #[test]
@@ -173,6 +208,33 @@ fn custom_history_jsonl_imports_full_shape_and_is_idempotent() {
     assert_eq!(second.imported_edges, 0);
     assert_eq!(second.skipped_events, 2);
     assert_eq!(second.skipped_edges, 2);
+}
+
+#[test]
+fn custom_history_human_claim_remains_unknown() {
+    let temp = tempdir();
+    let mut store = Store::open(temp.path().join("work.sqlite")).unwrap();
+    let input = [
+        r#"{"record_type":"manifest","schema_version":"ctx-history-jsonl-v1"}"#,
+        r#"{"record_type":"source","source_id":"src","provider_key":"custom-test","source_format":"custom-v1"}"#,
+        r#"{"record_type":"session","source_id":"src","session_id":"session","started_at":"2026-07-01T00:00:00Z"}"#,
+        r#"{"record_type":"event","source_id":"src","session_id":"session","event_index":0,"event_type":"message","role":"user","occurred_at":"2026-07-01T00:00:01Z","message_provenance":{"authorship":"human","evidence":"external-claim","classifier_version":7}}"#,
+    ]
+    .join("\n");
+
+    import_custom_history_jsonl_v1_reader(
+        std::io::Cursor::new(input.into_bytes()),
+        &mut store,
+        CustomHistoryJsonlV1ImportOptions::default(),
+    )
+    .unwrap();
+    let provider_session_id = custom_history_internal_session_id("custom-test", "src", "session");
+    let session_id = provider_session_uuid(CaptureProvider::Custom, &provider_session_id);
+    let event = store.events_for_session(session_id).unwrap().remove(0);
+    assert_eq!(
+        event.message_provenance.authorship,
+        MessageAuthorship::Unknown
+    );
 }
 
 #[test]

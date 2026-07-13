@@ -250,9 +250,37 @@ pub(crate) fn claude_event(
         }
     });
     let (text, truncated, retention) = provider_policy_event_text(event_type, &text, content);
+    let automated = value
+        .get("toolUseResult")
+        .is_some_and(|value| !value.is_null())
+        || value
+            .get("sourceToolAssistantUUID")
+            .is_some_and(|value| !value.is_null())
+        || value.get("isMeta").and_then(Value::as_bool) == Some(true)
+        || value.get("isCompactSummary").and_then(Value::as_bool) == Some(true)
+        || value.get("isSidechain").and_then(Value::as_bool) == Some(true)
+        || value.get("agentId").is_some()
+        || content.as_array().is_some_and(|parts| {
+            parts
+                .iter()
+                .any(|part| part.get("type").and_then(Value::as_str) == Some("tool_result"))
+        });
 
     Some(ProviderEventEnvelope {
-        message_provenance: Default::default(),
+        message_provenance: ctx_history_core::MessageProvenance {
+            authorship: if automated {
+                ctx_history_core::MessageAuthorship::Automated
+            } else {
+                ctx_history_core::MessageAuthorship::Unknown
+            },
+            evidence: if automated {
+                "provider_runtime_generated"
+            } else {
+                "ambiguous"
+            }
+            .to_owned(),
+            classifier_version: crate::MESSAGE_AUTHORSHIP_CLASSIFIER_REVISION,
+        },
         provider_event_index: (line_number - 1) as u64,
         provider_event_hash: value.get("uuid").and_then(Value::as_str).map(str::to_owned),
         cursor: value.get("uuid").and_then(Value::as_str).map(str::to_owned),
@@ -323,4 +351,83 @@ pub(crate) fn claude_content_has_type(content: Option<&Value>, expected: &str) -
                 .any(|block| block.get("type").and_then(Value::as_str) == Some(expected))
         })
         .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod authorship_tests {
+    use super::*;
+    use ctx_history_core::MessageAuthorship;
+
+    #[test]
+    fn plain_user_and_instruction_lookalike_remain_unknown() {
+        let event = claude_event(
+            &json!({
+                "type": "user",
+                "message": {"role": "user", "content": "<environment_context>AGENTS.md</environment_context>"}
+            }),
+            1,
+            "2026-07-01T00:00:00Z".parse().unwrap(),
+        ).unwrap();
+        assert_eq!(
+            event.message_provenance().authorship,
+            MessageAuthorship::Unknown
+        );
+    }
+
+    #[test]
+    fn structured_tool_generated_user_is_automated() {
+        let event = claude_event(
+            &json!({
+                "type": "user",
+                "toolUseResult": {"stdout": "generated"},
+                "message": {"role": "user", "content": [{"type": "tool_result", "content": "generated"}]}
+            }),
+            1,
+            "2026-07-01T00:00:00Z".parse().unwrap(),
+        ).unwrap();
+        assert_eq!(
+            event.message_provenance().authorship,
+            MessageAuthorship::Automated
+        );
+    }
+
+    #[test]
+    fn structural_runtime_matrix_is_conservative() {
+        for marker in [
+            json!({"isMeta": true}),
+            json!({"isCompactSummary": true}),
+            json!({"isSidechain": true}),
+            json!({"agentId": "agent-1"}),
+            json!({"sourceToolAssistantUUID": "tool-message"}),
+        ] {
+            let mut value = json!({
+                "type": "user",
+                "message": {"role": "user", "content": "runtime generated"}
+            });
+            value
+                .as_object_mut()
+                .unwrap()
+                .extend(marker.as_object().unwrap().clone());
+            assert_eq!(
+                claude_event(&value, 1, "2026-07-01T00:00:00Z".parse().unwrap())
+                    .unwrap()
+                    .message_provenance
+                    .authorship,
+                MessageAuthorship::Automated
+            );
+        }
+
+        for value in [
+            json!({"type": "user", "toolUseResult": null, "message": {"role": "user", "content": "plain"}}),
+            json!({"type": "permission-mode", "message": {"role": "user", "content": "approve?"}}),
+        ] {
+            assert_eq!(
+                claude_event(&value, 1, "2026-07-01T00:00:00Z".parse().unwrap())
+                    .unwrap()
+                    .message_provenance
+                    .authorship,
+                MessageAuthorship::Unknown
+            );
+        }
+    }
 }

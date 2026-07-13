@@ -647,7 +647,11 @@ pub(crate) fn codex_provider_event(
     metadata: Value,
 ) -> ProviderEventEnvelope {
     ProviderEventEnvelope {
-        message_provenance: Default::default(),
+        message_provenance: ctx_history_core::MessageProvenance {
+            authorship: ctx_history_core::MessageAuthorship::Unknown,
+            evidence: "ambiguous".to_owned(),
+            classifier_version: crate::MESSAGE_AUTHORSHIP_CLASSIFIER_REVISION,
+        },
         provider_event_index: (line_number - 1) as u64,
         provider_event_hash: None,
         cursor: Some(format!("line:{line_number}")),

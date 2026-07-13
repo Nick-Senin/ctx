@@ -161,42 +161,49 @@ impl Store {
                     indexed_at_ms = CASE
                         WHEN catalog_sessions.file_size_bytes = excluded.file_size_bytes
                          AND catalog_sessions.file_modified_at_ms = excluded.file_modified_at_ms
+                         AND catalog_sessions.metadata_json IS excluded.metadata_json
                         THEN catalog_sessions.indexed_at_ms
                         ELSE NULL
                     END,
                     indexed_file_size_bytes = CASE
                         WHEN catalog_sessions.file_size_bytes = excluded.file_size_bytes
                          AND catalog_sessions.file_modified_at_ms = excluded.file_modified_at_ms
+                         AND catalog_sessions.metadata_json IS excluded.metadata_json
                         THEN catalog_sessions.indexed_file_size_bytes
                         ELSE NULL
                     END,
                     indexed_file_modified_at_ms = CASE
                         WHEN catalog_sessions.file_size_bytes = excluded.file_size_bytes
                          AND catalog_sessions.file_modified_at_ms = excluded.file_modified_at_ms
+                         AND catalog_sessions.metadata_json IS excluded.metadata_json
                         THEN catalog_sessions.indexed_file_modified_at_ms
                         ELSE NULL
                     END,
                     indexed_status = CASE
                         WHEN catalog_sessions.file_size_bytes = excluded.file_size_bytes
                          AND catalog_sessions.file_modified_at_ms = excluded.file_modified_at_ms
+                         AND catalog_sessions.metadata_json IS excluded.metadata_json
                         THEN catalog_sessions.indexed_status
                         ELSE 'pending'
                     END,
                     indexed_error = CASE
                         WHEN catalog_sessions.file_size_bytes = excluded.file_size_bytes
                          AND catalog_sessions.file_modified_at_ms = excluded.file_modified_at_ms
+                         AND catalog_sessions.metadata_json IS excluded.metadata_json
                         THEN catalog_sessions.indexed_error
                         ELSE NULL
                     END,
                     indexed_event_count = CASE
                         WHEN catalog_sessions.file_size_bytes = excluded.file_size_bytes
                          AND catalog_sessions.file_modified_at_ms = excluded.file_modified_at_ms
+                         AND catalog_sessions.metadata_json IS excluded.metadata_json
                         THEN catalog_sessions.indexed_event_count
                         ELSE NULL
                     END,
                     last_imported_at_ms = CASE
                         WHEN catalog_sessions.file_size_bytes = excluded.file_size_bytes
                          AND catalog_sessions.file_modified_at_ms = excluded.file_modified_at_ms
+                         AND catalog_sessions.metadata_json IS excluded.metadata_json
                         THEN catalog_sessions.last_imported_at_ms
                         WHEN excluded.file_size_bytes > catalog_sessions.file_size_bytes
                          AND catalog_sessions.indexed_status = 'indexed'
@@ -209,6 +216,7 @@ impl Store {
                     last_imported_file_size_bytes = CASE
                         WHEN catalog_sessions.file_size_bytes = excluded.file_size_bytes
                          AND catalog_sessions.file_modified_at_ms = excluded.file_modified_at_ms
+                         AND catalog_sessions.metadata_json IS excluded.metadata_json
                         THEN catalog_sessions.last_imported_file_size_bytes
                         WHEN excluded.file_size_bytes > catalog_sessions.file_size_bytes
                          AND catalog_sessions.indexed_status = 'indexed'
@@ -221,6 +229,7 @@ impl Store {
                     last_imported_file_modified_at_ms = CASE
                         WHEN catalog_sessions.file_size_bytes = excluded.file_size_bytes
                          AND catalog_sessions.file_modified_at_ms = excluded.file_modified_at_ms
+                         AND catalog_sessions.metadata_json IS excluded.metadata_json
                         THEN catalog_sessions.last_imported_file_modified_at_ms
                         WHEN excluded.file_size_bytes > catalog_sessions.file_size_bytes
                          AND catalog_sessions.indexed_status = 'indexed'
@@ -233,6 +242,7 @@ impl Store {
                     last_imported_file_sha256 = CASE
                         WHEN catalog_sessions.file_size_bytes = excluded.file_size_bytes
                          AND catalog_sessions.file_modified_at_ms = excluded.file_modified_at_ms
+                         AND catalog_sessions.metadata_json IS excluded.metadata_json
                         THEN catalog_sessions.last_imported_file_sha256
                         WHEN excluded.file_size_bytes > catalog_sessions.file_size_bytes
                          AND catalog_sessions.indexed_status = 'indexed'
@@ -245,6 +255,7 @@ impl Store {
                     last_imported_event_count = CASE
                         WHEN catalog_sessions.file_size_bytes = excluded.file_size_bytes
                          AND catalog_sessions.file_modified_at_ms = excluded.file_modified_at_ms
+                         AND catalog_sessions.metadata_json IS excluded.metadata_json
                         THEN catalog_sessions.last_imported_event_count
                         WHEN excluded.file_size_bytes > catalog_sessions.file_size_bytes
                          AND catalog_sessions.indexed_status = 'indexed'
@@ -533,8 +544,11 @@ impl Store {
                         WHEN source_import_files.source_format IS excluded.source_format
                          AND source_import_files.file_size_bytes = excluded.file_size_bytes
                          AND source_import_files.file_modified_at_ms = excluded.file_modified_at_ms
-                         AND (json_extract(excluded.metadata_json, '$.inventory_unit') IS NOT 'source_root'
-                              OR source_import_files.metadata_json IS excluded.metadata_json)
+                         AND ((json_extract(excluded.metadata_json, '$.inventory_unit') IS 'source_root'
+                               AND source_import_files.metadata_json IS excluded.metadata_json)
+                              OR (json_extract(excluded.metadata_json, '$.inventory_unit') IS NOT 'source_root'
+                                  AND json_extract(source_import_files.metadata_json, '$.message_authorship_classifier_revision')
+                                      IS json_extract(excluded.metadata_json, '$.message_authorship_classifier_revision')))
                         THEN source_import_files.indexed_at_ms
                         ELSE NULL
                     END,
@@ -542,8 +556,11 @@ impl Store {
                         WHEN source_import_files.source_format IS excluded.source_format
                          AND source_import_files.file_size_bytes = excluded.file_size_bytes
                          AND source_import_files.file_modified_at_ms = excluded.file_modified_at_ms
-                         AND (json_extract(excluded.metadata_json, '$.inventory_unit') IS NOT 'source_root'
-                              OR source_import_files.metadata_json IS excluded.metadata_json)
+                         AND ((json_extract(excluded.metadata_json, '$.inventory_unit') IS 'source_root'
+                               AND source_import_files.metadata_json IS excluded.metadata_json)
+                              OR (json_extract(excluded.metadata_json, '$.inventory_unit') IS NOT 'source_root'
+                                  AND json_extract(source_import_files.metadata_json, '$.message_authorship_classifier_revision')
+                                      IS json_extract(excluded.metadata_json, '$.message_authorship_classifier_revision')))
                         THEN source_import_files.indexed_file_size_bytes
                         ELSE NULL
                     END,
@@ -551,8 +568,11 @@ impl Store {
                         WHEN source_import_files.source_format IS excluded.source_format
                          AND source_import_files.file_size_bytes = excluded.file_size_bytes
                          AND source_import_files.file_modified_at_ms = excluded.file_modified_at_ms
-                         AND (json_extract(excluded.metadata_json, '$.inventory_unit') IS NOT 'source_root'
-                              OR source_import_files.metadata_json IS excluded.metadata_json)
+                         AND ((json_extract(excluded.metadata_json, '$.inventory_unit') IS 'source_root'
+                               AND source_import_files.metadata_json IS excluded.metadata_json)
+                              OR (json_extract(excluded.metadata_json, '$.inventory_unit') IS NOT 'source_root'
+                                  AND json_extract(source_import_files.metadata_json, '$.message_authorship_classifier_revision')
+                                      IS json_extract(excluded.metadata_json, '$.message_authorship_classifier_revision')))
                         THEN source_import_files.indexed_file_modified_at_ms
                         ELSE NULL
                     END,
@@ -560,8 +580,11 @@ impl Store {
                         WHEN source_import_files.source_format IS excluded.source_format
                          AND source_import_files.file_size_bytes = excluded.file_size_bytes
                          AND source_import_files.file_modified_at_ms = excluded.file_modified_at_ms
-                         AND (json_extract(excluded.metadata_json, '$.inventory_unit') IS NOT 'source_root'
-                              OR source_import_files.metadata_json IS excluded.metadata_json)
+                         AND ((json_extract(excluded.metadata_json, '$.inventory_unit') IS 'source_root'
+                               AND source_import_files.metadata_json IS excluded.metadata_json)
+                              OR (json_extract(excluded.metadata_json, '$.inventory_unit') IS NOT 'source_root'
+                                  AND json_extract(source_import_files.metadata_json, '$.message_authorship_classifier_revision')
+                                      IS json_extract(excluded.metadata_json, '$.message_authorship_classifier_revision')))
                         THEN source_import_files.indexed_status
                         ELSE 'pending'
                     END,
@@ -569,8 +592,11 @@ impl Store {
                         WHEN source_import_files.source_format IS excluded.source_format
                          AND source_import_files.file_size_bytes = excluded.file_size_bytes
                          AND source_import_files.file_modified_at_ms = excluded.file_modified_at_ms
-                         AND (json_extract(excluded.metadata_json, '$.inventory_unit') IS NOT 'source_root'
-                              OR source_import_files.metadata_json IS excluded.metadata_json)
+                         AND ((json_extract(excluded.metadata_json, '$.inventory_unit') IS 'source_root'
+                               AND source_import_files.metadata_json IS excluded.metadata_json)
+                              OR (json_extract(excluded.metadata_json, '$.inventory_unit') IS NOT 'source_root'
+                                  AND json_extract(source_import_files.metadata_json, '$.message_authorship_classifier_revision')
+                                      IS json_extract(excluded.metadata_json, '$.message_authorship_classifier_revision')))
                         THEN source_import_files.indexed_error
                         ELSE NULL
                     END,
@@ -579,7 +605,11 @@ impl Store {
                    OR source_import_files.file_size_bytes != excluded.file_size_bytes
                    OR source_import_files.file_modified_at_ms != excluded.file_modified_at_ms
                    OR source_import_files.is_stale != 0
-                   OR source_import_files.metadata_json IS NOT excluded.metadata_json
+                   OR (json_extract(excluded.metadata_json, '$.inventory_unit') IS 'source_root'
+                       AND source_import_files.metadata_json IS NOT excluded.metadata_json)
+                   OR (json_extract(excluded.metadata_json, '$.inventory_unit') IS NOT 'source_root'
+                       AND json_extract(source_import_files.metadata_json, '$.message_authorship_classifier_revision')
+                           IS NOT json_extract(excluded.metadata_json, '$.message_authorship_classifier_revision'))
                 "#,
         )?;
         for file in files {
@@ -952,5 +982,7 @@ fn catalog_indexed_count_sql() -> String {
     .to_owned()
 }
 
+#[cfg(test)]
+mod authorship_tests;
 #[cfg(test)]
 mod tests;
