@@ -12,7 +12,43 @@ impl SemanticVectorStore {
         if event_ids.is_empty() {
             return Ok(SemanticVectorSearch::default());
         }
-        self.search_with_event_filter(query_embedding, limit, Some(event_ids))
+        // Keep exact metadata filtering without depending on SQLite's host-parameter ceiling.
+        // Each shard contributes at most `limit` candidates; merging those local top-k sets is
+        // sufficient to recover the global top-k.
+        const EVENT_FILTER_SHARD_SIZE: usize = 500;
+        let mut best_by_event = HashMap::<Uuid, SemanticVectorHit>::new();
+        let mut stats = SemanticVectorSearchStats::default();
+        for shard in event_ids.chunks(EVENT_FILTER_SHARD_SIZE) {
+            let search = self.search_with_event_filter(query_embedding, limit, Some(shard))?;
+            stats.backend = search.stats.backend.or(stats.backend);
+            stats.scan_ms = stats.scan_ms.saturating_add(search.stats.scan_ms);
+            stats.chunks_scanned = stats
+                .chunks_scanned
+                .saturating_add(search.stats.chunks_scanned);
+            stats.vector_bytes_read = stats
+                .vector_bytes_read
+                .saturating_add(search.stats.vector_bytes_read);
+            stats.events_scored = stats
+                .events_scored
+                .saturating_add(search.stats.events_scored);
+            for hit in search.hits {
+                match best_by_event.get_mut(&hit.event_id) {
+                    Some(existing) if hit.similarity > existing.similarity => *existing = hit,
+                    None => {
+                        best_by_event.insert(hit.event_id, hit);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        let limit = limit.max(1);
+        let mut hits = best_by_event.into_values().collect::<Vec<_>>();
+        if hits.len() > limit {
+            hits.select_nth_unstable_by(limit - 1, compare_semantic_hits_desc);
+            hits.truncate(limit);
+        }
+        hits.sort_by(compare_semantic_hits_desc);
+        Ok(SemanticVectorSearch { hits, stats })
     }
 
     fn search_with_event_filter(

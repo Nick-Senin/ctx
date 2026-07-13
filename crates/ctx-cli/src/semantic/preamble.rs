@@ -789,13 +789,19 @@ fn semantic_or_hybrid_search_packet(
             } else {
                 SEMANTIC_SEARCH_CANDIDATES.max(options.limit.saturating_mul(8))
             };
+            let semantic_event_filter = options
+                .filters
+                .message_authorship
+                .map(|authorship| store.event_ids_by_message_authorship(authorship))
+                .transpose()?
+                .map(|event_ids| event_ids.into_iter().collect::<Vec<_>>());
             match semantic_hits_for_text_query(
                 data_root,
                 store,
                 &vector_store,
                 semantic_text,
                 semantic_candidate_limit,
-                None,
+                semantic_event_filter.as_deref(),
             ) {
                 Ok((semantic_hits, diagnostics)) => {
                     retrieval.diagnostics = Some(diagnostics);

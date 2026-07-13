@@ -233,7 +233,7 @@ pub(crate) fn run_search(
         "query_term_count_bucket",
         query_term_count as u64,
     );
-    let event_results = args.events || args.session.is_some();
+    let event_results = args.events || args.session.is_some() || args.message_authorship.is_some();
     let options = ctx_history_search::PacketOptions {
         limit: args.limit,
         filters: search_filters(
@@ -246,6 +246,7 @@ pub(crate) fn run_search(
                 primary_only: args.primary_only,
                 include_subagents: args.include_subagents,
                 event_type: args.event_type.clone(),
+                message_authorship: args.message_authorship.clone(),
                 file: args.file.clone(),
                 include_current_session: args.include_current_session,
             },

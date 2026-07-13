@@ -94,9 +94,19 @@ pub fn semantic_event_search_packet(
         let page_size = FILTERED_SEARCH_PAGE_SIZE.max(target_results.saturating_mul(8).max(50));
         let mut lexical_rank = 0_usize;
         let lexical_hits = if options.filters.event_type.is_some() {
-            store.search_event_hits_page(query, page_size, 0)?
+            store.search_event_hits_page_filtered(
+                query,
+                page_size,
+                0,
+                options.filters.message_authorship,
+            )?
         } else {
-            store.search_event_hits_page_prefer_conversation(query, page_size, 0)?
+            store.search_event_hits_page_filtered_prefer_conversation(
+                query,
+                page_size,
+                0,
+                options.filters.message_authorship,
+            )?
         };
         for hit in lexical_hits {
             if !event_hit_matches_filters(&hit, &options.filters, file_scope) {
@@ -341,10 +351,12 @@ fn fast_event_search_packet(
     if query.trim().is_empty() {
         return Ok(None);
     }
-    if has_history_source_filter(&options.filters) {
+    if has_history_source_filter(&options.filters) && options.filters.message_authorship.is_none() {
         return Ok(None);
     }
-    if !store.has_at_least_events(LARGE_EVENT_CORPUS_THRESHOLD)? {
+    if options.filters.message_authorship.is_none()
+        && !store.has_at_least_events(LARGE_EVENT_CORPUS_THRESHOLD)?
+    {
         return Ok(None);
     }
 
@@ -368,9 +380,19 @@ fn fast_event_search_packet(
     loop {
         pages_scanned = pages_scanned.saturating_add(1);
         let hits = if options.filters.event_type.is_some() {
-            store.search_event_hits_page(query, page_size, offset)?
+            store.search_event_hits_page_filtered(
+                query,
+                page_size,
+                offset,
+                options.filters.message_authorship,
+            )?
         } else {
-            store.search_event_hits_page_prefer_conversation(query, page_size, offset)?
+            store.search_event_hits_page_filtered_prefer_conversation(
+                query,
+                page_size,
+                offset,
+                options.filters.message_authorship,
+            )?
         };
         let page_len = hits.len();
 

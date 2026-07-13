@@ -1,5 +1,5 @@
 use chrono::Utc;
-use ctx_history_core::EventType;
+use ctx_history_core::{EventType, MessageAuthorship};
 use serde::Serialize;
 use thiserror::Error;
 use uuid::Uuid;
@@ -71,6 +71,8 @@ pub struct SearchFilters {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub event_type: Option<EventType>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message_authorship: Option<MessageAuthorship>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub file: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub exclude_provider_session: Option<ProviderSessionFilter>,
@@ -101,11 +103,16 @@ pub struct ProviderSessionFilter {
 }
 
 pub(crate) fn normalized_options(options: &PacketOptions) -> PacketOptions {
+    let result_mode = if options.filters.message_authorship.is_some() {
+        SearchResultMode::Events
+    } else {
+        options.result_mode
+    };
     PacketOptions {
         limit: options.limit.clamp(1, MAX_RESULT_LIMIT),
         snippet_chars: options.snippet_chars.clamp(32, 2_000),
         filters: options.filters.normalized(),
-        result_mode: options.result_mode,
+        result_mode,
     }
 }
 

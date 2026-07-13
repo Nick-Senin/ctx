@@ -59,10 +59,38 @@ are implementation details and can change between versions.
 | `event_seq` | Provider/session event sequence. |
 | `event_type` | `message`, `tool_call`, `tool_output`, `command_started`, `command_output`, `command_finished`, `file_touched`, `vcs_change`, `artifact`, `summary`, or `notice`. |
 | `role` | Event role such as `user`, `assistant`, or `tool`, when known. |
+| `message_authorship` | Provenance-backed `human`, `automated`, or `unknown`. `role=user` does not imply `human`. |
+| `message_authorship_evidence` | Stable structural reason for the classification. |
+| `message_authorship_classifier_version` | Version of the provider classifier that produced the classification. |
 | `occurred_at_ms` | Unix epoch milliseconds. |
 | `payload_json` | Local private event payload. |
 | `fidelity` | Import fidelity. |
 | `cwd`, `source_path` | Captured source context, when known. |
+
+`ctx_human_messages` has the same columns as `ctx_events`, but contains only
+message events whose native source proves human authorship. This is the stable
+interface for consumers that must not receive runtime-generated `role=user`
+content:
+
+```sql
+SELECT ctx_event_id, provider, occurred_at_ms, payload_json
+FROM ctx_human_messages
+ORDER BY occurred_at_ms;
+```
+
+Rows with `message_authorship = 'unknown'` are deliberately excluded. Query
+`ctx_events` when an audit needs unknown or automated events; imports never
+discard them.
+
+Confirmed-human availability depends on what the native runtime persists. The
+Codex prompt log is an affirmative operator-input channel and can produce
+`human` rows. Normal Codex rollout/session JSONL does not distinguish operator
+messages from injected `role=user` records, so those messages are `unknown`.
+Claude Code prompt history is also an affirmative operator-input channel and
+can produce `human` rows. Claude project transcripts remain conservative:
+runtime/tool/meta records can be identified as `automated`, while ambiguous
+user-role records stay `unknown`. OpenCode parts with `synthetic=true` are
+`automated`; other OpenCode user-role records remain `unknown`.
 
 `ctx_files_touched`:
 

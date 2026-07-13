@@ -37,6 +37,11 @@ pub(crate) fn event_hit_matches_filters(
             return false;
         }
     }
+    if let Some(message_authorship) = filters.message_authorship {
+        if hit.message_authorship != message_authorship {
+            return false;
+        }
+    }
     if let Some(repo) = filters.repo.as_deref() {
         let repo = repo.to_lowercase();
         let matches_repo = [
@@ -359,6 +364,7 @@ pub(crate) fn has_filters(filters: &SearchFilters) -> bool {
         || filters.primary_only
         || !filters.include_subagents
         || filters.event_type.is_some()
+        || filters.message_authorship.is_some()
         || filters.file.is_some()
         || filters.exclude_provider_session.is_some()
         || has_history_source_filter(filters)

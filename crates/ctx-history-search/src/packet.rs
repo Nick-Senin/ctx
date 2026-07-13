@@ -30,6 +30,8 @@ pub struct SearchPacketResult {
     pub event_id: Option<Uuid>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub event_seq: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message_authorship: Option<ctx_history_core::MessageAuthorship>,
     pub title: String,
     pub snippet: String,
     pub rank: f32,

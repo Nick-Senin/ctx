@@ -1,8 +1,9 @@
 use super::{
-    fixed_time, search_packet, sync_metadata, test_store, timestamps, AgentType, BTreeSet,
-    CaptureProvider, CaptureSource, CaptureSourceDescriptor, CaptureSourceKind, Confidence,
-    ContextCitationType, Event, EventRole, EventType, FileChangeKind, FileTouched, HistoryRecord,
-    MessageProvenance, PacketOptions, SearchFilters, SearchResultMode, SearchResultScope, Session,
+    fixed_time, search_packet, semantic_event_search_packet, sync_metadata, test_store, timestamps,
+    AgentType, BTreeSet, CaptureProvider, CaptureSource, CaptureSourceDescriptor,
+    CaptureSourceKind, Confidence, ContextCitationType, Event, EventRole, EventType,
+    FileChangeKind, FileTouched, HistoryRecord, MessageAuthorship, MessageProvenance,
+    PacketOptions, SearchFilters, SearchResultMode, SearchResultScope, SemanticEventHit, Session,
     SessionStatus, SyncMetadata, Uuid, LARGE_EVENT_CORPUS_THRESHOLD,
 };
 
@@ -141,6 +142,137 @@ fn fast_search_prefers_messages_and_summaries_in_event_and_session_modes() {
     assert_eq!(tool_only.results.len(), 1);
     assert_eq!(tool_only.results[0].event_id, Some(matching_event_ids[2]));
     assert_eq!(tool_only.results[0].why_matched, vec!["tool_output"]);
+}
+
+#[test]
+fn authorship_filter_forces_event_scope_and_does_not_match_session_siblings() {
+    let (_temp, store) = test_store();
+    let record = HistoryRecord::new(
+        "Authorship session",
+        "session record does not contain the query",
+        Vec::new(),
+        "agent_history",
+        Some("/workspace/ctx".into()),
+    );
+    store.insert_record(&record).unwrap();
+    let session = Session {
+        id: Uuid::parse_str("018f45d0-0000-7000-8000-000000000699").unwrap(),
+        history_record_id: Some(record.id),
+        parent_session_id: None,
+        root_session_id: None,
+        capture_source_id: None,
+        provider: CaptureProvider::Codex,
+        external_session_id: Some("authorship-session".into()),
+        external_agent_id: None,
+        agent_type: AgentType::Primary,
+        role_hint: Some("primary".into()),
+        is_primary: true,
+        status: SessionStatus::Imported,
+        transcript_blob_id: None,
+        started_at: fixed_time(),
+        ended_at: None,
+        timestamps: timestamps(),
+        sync: sync_metadata(),
+    };
+    store.upsert_session(&session).unwrap();
+
+    let mut event = Event {
+        message_provenance: MessageProvenance::default(),
+        id: Uuid::parse_str("018f45d0-0000-7000-8000-00000000069a").unwrap(),
+        seq: 1,
+        history_record_id: Some(record.id),
+        session_id: Some(session.id),
+        run_id: None,
+        event_type: EventType::Message,
+        role: Some(EventRole::User),
+        occurred_at: fixed_time(),
+        capture_source_id: None,
+        payload: serde_json::json!({"text": "machine-only-session-needle"}),
+        payload_blob_id: None,
+        dedupe_key: Some("authorship-injected".into()),
+        sync: sync_metadata(),
+    };
+    store.upsert_event(&event).unwrap();
+    event.id = Uuid::parse_str("018f45d0-0000-7000-8000-00000000069b").unwrap();
+    event.seq = 2;
+    event.payload = serde_json::json!({"text": "a genuine unrelated operator message"});
+    event.dedupe_key = Some("authorship-human".into());
+    event.message_provenance = MessageProvenance {
+        authorship: MessageAuthorship::Human,
+        evidence: "provider_prompt_log".into(),
+        classifier_version: 1,
+    };
+    store.upsert_event(&event).unwrap();
+
+    let search = |query| {
+        search_packet(
+            &store,
+            query,
+            &PacketOptions {
+                limit: 5,
+                result_mode: SearchResultMode::Sessions,
+                filters: SearchFilters {
+                    message_authorship: Some(MessageAuthorship::Human),
+                    ..SearchFilters::default()
+                },
+                ..PacketOptions::default()
+            },
+        )
+        .unwrap()
+    };
+    assert!(search("machine-only-session-needle").results.is_empty());
+    let packet = search("genuine unrelated operator");
+    assert_eq!(packet.results.len(), 1);
+    assert_eq!(packet.results[0].result_scope, SearchResultScope::Event);
+    assert_eq!(
+        packet.results[0].message_authorship,
+        Some(MessageAuthorship::Human)
+    );
+
+    event.id = Uuid::parse_str("018f45d0-0000-7000-8000-00000000069c").unwrap();
+    event.seq = 3;
+    event.dedupe_key = Some("authorship-automated-same-query".into());
+    event.message_provenance = MessageProvenance {
+        authorship: MessageAuthorship::Automated,
+        evidence: "runtime_inject".into(),
+        classifier_version: 1,
+    };
+    store.upsert_event(&event).unwrap();
+    let semantic_hits = store
+        .search_event_hits("genuine unrelated operator", 10)
+        .unwrap()
+        .into_iter()
+        .map(|hit| SemanticEventHit {
+            similarity: if hit.message_authorship == MessageAuthorship::Automated {
+                1.0
+            } else {
+                0.5
+            },
+            hit,
+        })
+        .collect::<Vec<_>>();
+    let semantic_packet = semantic_event_search_packet(
+        &store,
+        "genuine unrelated operator",
+        &PacketOptions {
+            limit: 1,
+            result_mode: SearchResultMode::Events,
+            filters: SearchFilters {
+                message_authorship: Some(MessageAuthorship::Human),
+                ..SearchFilters::default()
+            },
+            ..PacketOptions::default()
+        },
+        &semantic_hits,
+        1.0,
+        false,
+    )
+    .unwrap();
+    assert_eq!(semantic_packet.results.len(), 1);
+    assert_eq!(
+        semantic_packet.results[0].message_authorship,
+        Some(MessageAuthorship::Human)
+    );
 }
 
 #[test]

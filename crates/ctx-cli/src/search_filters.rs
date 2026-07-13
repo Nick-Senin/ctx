@@ -6,7 +6,7 @@ use std::{
 use anyhow::{anyhow, Context, Result};
 use chrono::{Duration, Utc};
 
-use ctx_history_core::{utc_now, CaptureProvider, EventType};
+use ctx_history_core::{utc_now, CaptureProvider, EventType, MessageAuthorship};
 use ctx_history_store::Store;
 
 use crate::history_source_plugins::HistorySourcePluginSource;
@@ -23,6 +23,7 @@ pub(crate) struct SearchFilterInput {
     pub(crate) primary_only: bool,
     pub(crate) include_subagents: bool,
     pub(crate) event_type: Option<String>,
+    pub(crate) message_authorship: Option<String>,
     pub(crate) file: Option<PathBuf>,
     pub(crate) include_current_session: bool,
 }
@@ -180,6 +181,12 @@ pub(crate) fn search_filters(
             .event_type
             .as_deref()
             .map(EventType::from_str)
+            .transpose()
+            .map_err(|err| anyhow!("{err}"))?,
+        message_authorship: input
+            .message_authorship
+            .as_deref()
+            .map(MessageAuthorship::from_str)
             .transpose()
             .map_err(|err| anyhow!("{err}"))?,
         file: input.file.and_then(|path| {

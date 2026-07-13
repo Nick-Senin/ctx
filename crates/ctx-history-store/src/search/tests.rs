@@ -3,8 +3,8 @@ use std::fs;
 
 use chrono::{DateTime, Duration, Utc};
 use ctx_history_core::{
-    new_id, Event, EventRole, EventType, Fidelity, HistoryRecord, SyncMetadata, SyncState,
-    Visibility,
+    new_id, Event, EventRole, EventType, Fidelity, HistoryRecord, MessageAuthorship,
+    MessageProvenance, SyncMetadata, SyncState, Visibility,
 };
 use rusqlite::params;
 use uuid::Uuid;
@@ -23,6 +23,48 @@ fn tempdir() -> tempfile::TempDir {
         .prefix("ctx-history-store-search-order-")
         .tempdir_in(root)
         .unwrap()
+}
+
+#[test]
+fn event_authorship_filter_is_applied_before_limit_and_offset() {
+    let temp = tempdir();
+    let store = Store::open(temp.path().join("work.sqlite")).unwrap();
+
+    for seq in 1..=3 {
+        let mut event = local_preview_event(seq, "authorship pagination needle");
+        event.occurred_at = fixed_time() + Duration::minutes(seq as i64);
+        if seq >= 2 {
+            event.message_provenance = MessageProvenance {
+                authorship: MessageAuthorship::Human,
+                evidence: "test_structural_provenance".to_owned(),
+                classifier_version: 1,
+            };
+        }
+        store.upsert_event(&event).unwrap();
+    }
+
+    let first = store
+        .search_event_hits_page_filtered(
+            "authorship pagination needle",
+            1,
+            0,
+            Some(MessageAuthorship::Human),
+        )
+        .unwrap();
+    let second = store
+        .search_event_hits_page_filtered(
+            "authorship pagination needle",
+            1,
+            1,
+            Some(MessageAuthorship::Human),
+        )
+        .unwrap();
+
+    assert_eq!(first.len(), 1);
+    assert_eq!(second.len(), 1);
+    assert_eq!(first[0].message_authorship, MessageAuthorship::Human);
+    assert_eq!(second[0].message_authorship, MessageAuthorship::Human);
+    assert_ne!(first[0].event_id, second[0].event_id);
 }
 
 fn fixed_time() -> DateTime<Utc> {

@@ -38,6 +38,7 @@ impl SearchDto {
                         "session_id": result.session_id,
                         "event_id": result.event_id,
                         "event_seq": result.event_seq,
+                        "message_authorship": result.message_authorship,
                         "title": result.title,
                         "snippet": result.snippet,
                         "rank": result.rank,

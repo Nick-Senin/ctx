@@ -3,9 +3,9 @@ use ctx_history_core::{
     AgentType, Artifact, ArtifactKind, CaptureProvider, CaptureSource, CaptureSourceDescriptor,
     CaptureSourceKind, Confidence, ContextCitationType, EntityTimestamps, Event, EventRole,
     EventType, Fidelity, FileChangeKind, FileTouched, HistoryRecord, HistoryRecordLink,
-    HistoryRecordLinkTargetType, HistoryRecordLinkType, MessageProvenance, Run, RunStatus, RunType,
-    Session, SessionHistoryArchive, SessionStatus, Summary, SummaryKind, SyncMetadata, SyncState,
-    VcsChange, VcsChangeKind, VcsHost, VcsKind, VcsWorkspace, Visibility,
+    HistoryRecordLinkTargetType, HistoryRecordLinkType, MessageAuthorship, MessageProvenance, Run,
+    RunStatus, RunType, Session, SessionHistoryArchive, SessionStatus, Summary, SummaryKind,
+    SyncMetadata, SyncState, VcsChange, VcsChangeKind, VcsHost, VcsKind, VcsWorkspace, Visibility,
 };
 use serde::Serialize;
 use std::{collections::BTreeSet, path::Path};
@@ -21,8 +21,9 @@ use crate::query::{
 };
 use crate::source::empty_hit;
 use crate::{
-    display_snippet, event_preview_text, search_packet, search_packet_terms, PacketOptions,
-    ProviderSessionFilter, SearchFilters, SearchResultMode, SearchResultScope, MAX_RESULT_LIMIT,
+    display_snippet, event_preview_text, search_packet, search_packet_terms,
+    semantic_event_search_packet, PacketOptions, ProviderSessionFilter, SearchFilters,
+    SearchResultMode, SearchResultScope, SemanticEventHit, MAX_RESULT_LIMIT,
 };
 use ctx_history_store::EventSearchHit;
 

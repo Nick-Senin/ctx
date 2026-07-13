@@ -153,6 +153,7 @@ pub(crate) fn candidate_search_result(
         session_id: display_hit.as_ref().and_then(|hit| hit.session_id),
         event_id: display_hit.as_ref().and_then(|hit| hit.event_id),
         event_seq: display_hit.as_ref().and_then(|hit| hit.event_seq),
+        message_authorship: None,
         title: local_snippet(&candidate.record.title, 240),
         snippet: search_snippet(
             &candidate.record,
@@ -294,6 +295,7 @@ pub(crate) fn event_search_result(
         source_id: hit.source_id.clone(),
         source_format: hit.source_format.clone(),
         timestamp: Some(hit.occurred_at),
+        message_authorship: Some(hit.message_authorship),
         cwd: hit.cwd.clone(),
         raw_source_path: hit.raw_source_path.clone(),
         raw_source_exists,

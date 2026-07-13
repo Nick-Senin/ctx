@@ -1,9 +1,12 @@
 use rusqlite::types::Value;
 
+use ctx_history_core::MessageAuthorship;
+
 pub(super) fn lexical_event_search_query(
     match_clauses: Vec<String>,
     limit: usize,
     offset: usize,
+    message_authorship: Option<MessageAuthorship>,
     prefer_conversation: bool,
 ) -> (String, Vec<Value>) {
     let mut values = Vec::<Value>::new();
@@ -27,6 +30,12 @@ pub(super) fn lexical_event_search_query(
         })
         .collect::<Vec<_>>()
         .join(" UNION ALL ");
+    let authorship_clause = if let Some(authorship) = message_authorship {
+        values.push(Value::Text(authorship.as_str().to_owned()));
+        format!("WHERE e.message_authorship = ?{} ", values.len())
+    } else {
+        String::new()
+    };
     values.push(Value::Integer(limit.max(1) as i64));
     let limit_parameter = values.len();
     values.push(Value::Integer(offset as i64));
@@ -55,7 +64,7 @@ pub(super) fn lexical_event_search_query(
         event_search_hit_sql(
             "ranked AS event_search",
             &event_search_score("event_search.score", prefer_conversation),
-            "ORDER BY event_search.matched_terms DESC, search_score, e.occurred_at_ms DESC, e.seq DESC, event_search.event_id",
+            &format!("{authorship_clause}ORDER BY event_search.matched_terms DESC, search_score, e.occurred_at_ms DESC, e.seq DESC, event_search.event_id"),
         )
     );
     (sql, values)
@@ -96,7 +105,8 @@ pub(super) fn event_search_hit_sql(from_sql: &str, score_sql: &str, tail_sql: &s
                COALESCE(event_source.metadata_json, session_source.metadata_json, run_source.metadata_json),
                wr.title,
                wr.kind,
-               wr.workspace
+               wr.workspace,
+               e.message_authorship
         FROM {from_sql}
         JOIN events e ON e.id = event_search.event_id
         LEFT JOIN runs r ON r.id = e.run_id

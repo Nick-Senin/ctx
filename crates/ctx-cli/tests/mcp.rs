@@ -96,6 +96,10 @@ fn mcp_status_and_tools_list_are_read_only_without_initialized_store() {
     for expected in ["hybrid", "semantic", "lexical"] {
         assert!(backend_values.iter().any(|value| value == expected));
     }
+    assert_eq!(
+        search_tool["inputSchema"]["properties"]["message_authorship"]["enum"],
+        json!(["human", "automated", "unknown"])
+    );
     assert!(search_tool["inputSchema"]["properties"]["backend"]["default"].is_null());
     assert_eq!(
         search_tool["inputSchema"]["properties"]["semantic_weight"]["default"],
@@ -644,6 +648,83 @@ fn mcp_search_requires_query_term_or_file_without_opening_store() {
         !temp.path().join("work.sqlite").exists(),
         "invalid MCP search should fail before opening the ctx store"
     );
+}
+
+#[test]
+fn mcp_search_filters_message_authorship_and_rejects_invalid_values() {
+    let temp = tempdir();
+    let history = temp.path().join("history.jsonl");
+    fs::write(
+        &history,
+        concat!(
+            r#"{"display":"mcp authorship oracle","pastedContents":{},"timestamp":1783684800789,"project":"/workspace","sessionId":"00000000-0000-4000-8000-000000000003"}"#,
+            "\n",
+        ),
+    )
+    .unwrap();
+    json_output(ctx(&temp).args([
+        "import",
+        "--provider",
+        "claude",
+        "--path",
+        history.to_str().unwrap(),
+        "--json",
+        "--progress",
+        "none",
+    ]));
+
+    let responses = mcp_roundtrip(
+        &temp,
+        &[
+            json!({
+                "jsonrpc": "2.0",
+                "id": "init",
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2025-11-25",
+                    "capabilities": {},
+                    "clientInfo": { "name": "ctx-test", "version": "0" }
+                }
+            }),
+            json!({
+                "jsonrpc": "2.0",
+                "id": "human-search",
+                "method": "tools/call",
+                "params": {
+                    "name": "search",
+                    "arguments": {
+                        "query": "mcp authorship oracle",
+                        "message_authorship": "human",
+                        "limit": 5
+                    }
+                }
+            }),
+            json!({
+                "jsonrpc": "2.0",
+                "id": "invalid-authorship",
+                "method": "tools/call",
+                "params": {
+                    "name": "search",
+                    "arguments": {
+                        "query": "mcp authorship oracle",
+                        "message_authorship": "robot",
+                        "limit": 5
+                    }
+                }
+            }),
+        ],
+    );
+
+    let search = &responses[1]["result"]["structuredContent"];
+    assert_eq!(search["filters"]["message_authorship"], "human");
+    assert_eq!(search["results"].as_array().unwrap().len(), 1, "{search:#}");
+    assert_eq!(search["results"][0]["message_authorship"], "human");
+
+    let invalid = &responses[2]["result"];
+    assert_eq!(invalid["isError"], true);
+    let error = invalid["structuredContent"]["error"].as_str().unwrap();
+    assert!(error.contains("message_authorship"), "{error}");
+    assert!(error.contains("human, automated, unknown"), "{error}");
 }
 
 #[test]

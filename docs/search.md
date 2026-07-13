@@ -25,6 +25,7 @@ ctx search "build failure"
 ctx search "sqlite storage" --provider codex
 ctx search "retry handling" --workspace checkout --since 60d
 ctx search "tool output" --event-type tool_output
+ctx search "release decision" --message-authorship human
 ctx search --file crates/foo/src/lib.rs
 ctx search "token budget" --refresh off
 ctx search "signed metadata" --term checksum --term release
@@ -80,6 +81,8 @@ Search filters narrow both human output and JSON:
 - `--event-type <event-type>`, one of `message`, `tool_call`, `tool_output`,
   `command_started`, `command_output`, `command_finished`, `file_touched`,
   `vcs_change`, `artifact`, `summary`, or `notice`;
+- `--message-authorship human|automated|unknown`, using provider provenance
+  rather than `role=user`; this forces event-level results;
 - `--file <path>`, indexed touched-file path metadata, not the current
   filesystem;
 - `--session <ctx-session-id-or-prefix>`;
@@ -99,6 +102,11 @@ such as `copilot_cli`, `factory_ai_droid`, `qwen_code`, `kimi_code_cli`, `kiro_c
 
 `--since` accepts RFC 3339 timestamps such as `2026-06-01T00:00:00Z` or a day
 window such as `30d`.
+
+Authorship filtering is applied before result limits and pagination. Use
+`human` when machine-generated user-role records must be excluded. See
+[message authorship](message-authorship.md) for provider coverage and unknown
+semantics.
 
 `--file <path>` filters by normalized `files_touched` metadata when provider
 transcripts expose touched paths. Use it without a query to list indexed events

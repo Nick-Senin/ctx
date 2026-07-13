@@ -1,8 +1,8 @@
 use super::{
     context_has_excluded_provider_session, empty_hit, event_hit_matches_excluded_provider_session,
     excluded_filter, fixed_time, hit_matches_excluded_provider_session, sync_metadata, timestamps,
-    AgentType, CaptureProvider, EventRole, EventSearchHit, EventType, HitMetadata, RecordContext,
-    Session, SessionStatus, Uuid,
+    AgentType, CaptureProvider, EventRole, EventSearchHit, EventType, HitMetadata,
+    MessageAuthorship, RecordContext, Session, SessionStatus, Uuid,
 };
 
 #[test]
@@ -25,6 +25,7 @@ fn excluded_provider_session_matches_provider_external_id_for_hits() {
         seq: 1,
         event_type: EventType::Message,
         role: Some(EventRole::User),
+        message_authorship: MessageAuthorship::Unknown,
         occurred_at: fixed_time(),
         preview: "synthetic preview".into(),
         score: 1.0,
@@ -80,6 +81,7 @@ fn excluded_provider_session_matches_parent_and_root_session_tree() {
         seq: 1,
         event_type: EventType::Message,
         role: Some(EventRole::Assistant),
+        message_authorship: MessageAuthorship::Unknown,
         occurred_at: fixed_time(),
         preview: "synthetic preview".into(),
         score: 1.0,

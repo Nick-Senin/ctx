@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use chrono::{DateTime, Utc};
 use ctx_history_core::{
     utc_now, AgentType, CaptureProvider, Event, EventRole, EventType, HistoryRecord,
-    RedactionState, SyncState, Visibility,
+    MessageAuthorship, RedactionState, SyncState, Visibility,
 };
 use rusqlite::{params, params_from_iter, types::Value, Connection, OptionalExtension};
 use uuid::Uuid;
@@ -37,6 +37,7 @@ pub struct EventSearchHit {
     pub seq: u64,
     pub event_type: EventType,
     pub role: Option<EventRole>,
+    pub message_authorship: MessageAuthorship,
     pub occurred_at: DateTime<Utc>,
     pub preview: String,
     pub score: f64,
@@ -102,33 +103,12 @@ impl Store {
                     && event_search_lookup_candidate_count(&self.conn)? > 0)))
     }
 
-    pub fn search_event_hits(&self, query: &str, limit: usize) -> Result<Vec<EventSearchHit>> {
-        self.search_event_hits_page(query, limit, 0)
-    }
-
-    pub fn search_event_hits_page(
+    pub(crate) fn search_event_hits_page_filtered_with_ranking(
         &self,
         query: &str,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<EventSearchHit>> {
-        self.search_event_hits_page_with_ranking(query, limit, offset, false)
-    }
-
-    pub fn search_event_hits_page_prefer_conversation(
-        &self,
-        query: &str,
-        limit: usize,
-        offset: usize,
-    ) -> Result<Vec<EventSearchHit>> {
-        self.search_event_hits_page_with_ranking(query, limit, offset, true)
-    }
-
-    fn search_event_hits_page_with_ranking(
-        &self,
-        query: &str,
-        limit: usize,
-        offset: usize,
+        message_authorship: Option<MessageAuthorship>,
         prefer_conversation: bool,
     ) -> Result<Vec<EventSearchHit>> {
         if !table_exists(&self.conn, "event_search")? {
@@ -149,19 +129,28 @@ impl Store {
                 match_clauses,
                 limit,
                 offset,
+                message_authorship,
                 prefer_conversation,
             );
         }
 
         let mut selects = Vec::new();
         let mut values = Vec::<Value>::new();
+        let authorship_clause = if let Some(authorship) = message_authorship {
+            values.push(Value::Text(authorship.as_str().to_owned()));
+            format!(" AND e.message_authorship = ?{}", values.len())
+        } else {
+            String::new()
+        };
         for (term_index, clause) in match_clauses.into_iter().enumerate() {
             values.push(Value::Text(clause));
             selects.push(format!(
                 r#"SELECT event_search.event_id, {term_index}, bm25(event_search)
                    FROM event_search
-                   WHERE event_search MATCH ?{}"#,
-                values.len()
+                   JOIN events e ON e.id = event_search.event_id
+                   WHERE event_search MATCH ?{}{}"#,
+                values.len(),
+                authorship_clause
             ));
         }
         for (term_index, clause) in scriptgram_clauses {
@@ -170,8 +159,10 @@ impl Store {
                 r#"SELECT event_search_scriptgram.event_id, {term_index},
                           bm25(event_search_scriptgram) + 0.35
                    FROM event_search_scriptgram
-                   WHERE event_search_scriptgram MATCH ?{}"#,
-                values.len()
+                   JOIN events e ON e.id = event_search_scriptgram.event_id
+                   WHERE event_search_scriptgram MATCH ?{}{}"#,
+                values.len(),
+                authorship_clause
             ));
         }
         values.push(Value::Integer(limit.max(1) as i64));
@@ -213,10 +204,16 @@ impl Store {
         match_clauses: Vec<String>,
         limit: usize,
         offset: usize,
+        message_authorship: Option<MessageAuthorship>,
         prefer_conversation: bool,
     ) -> Result<Vec<EventSearchHit>> {
-        let (sql, values) =
-            lexical_event_search_query(match_clauses, limit, offset, prefer_conversation);
+        let (sql, values) = lexical_event_search_query(
+            match_clauses,
+            limit,
+            offset,
+            message_authorship,
+            prefer_conversation,
+        );
         let mut stmt = self.conn.prepare(&sql)?;
         let rows = stmt.query_map(params_from_iter(values), event_search_hit_from_row)?;
         collect_rows(rows)
@@ -279,6 +276,9 @@ impl Store {
                 seq: row.get::<_, i64>(3)? as u64,
                 event_type: parse_text_enum::<EventType>(row.get::<_, String>(5)?)?,
                 role: parse_optional_text_enum::<EventRole>(row.get(6)?)?,
+                message_authorship: parse_text_enum::<MessageAuthorship>(
+                    row.get::<_, String>(26)?,
+                )?,
                 occurred_at: ms_to_time(row.get(22)?)?,
                 preview,
                 score: 0.0,
@@ -554,6 +554,7 @@ fn event_search_hit_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<EventS
         seq: nonnegative_i64_to_u64(row.get(4)?)?,
         event_type: parse_text_enum::<EventType>(row.get::<_, String>(5)?)?,
         role: parse_optional_text_enum::<EventRole>(row.get(6)?)?,
+        message_authorship: parse_text_enum::<MessageAuthorship>(row.get::<_, String>(23)?)?,
         occurred_at: ms_to_time(row.get(7)?)?,
         preview: row.get(8)?,
         score: row.get(9)?,
@@ -990,7 +991,8 @@ fn semantic_lite_turn_document_select_sql(anchor_tail: &str, document_tail: &str
                occurred_at_ms,
                session_external_session_id,
                session_parent_session_id,
-               session_root_session_id
+               session_root_session_id,
+               message_authorship
         FROM semantic_lite_turn_docs
         {document_tail}
         "#,
@@ -1042,7 +1044,8 @@ fn semantic_lite_turn_cte_sql(anchor_tail: &str) -> String {
                    anchor.event_type AS event_type,
                    anchor.role AS role,
                    anchor_search.preview_text AS preview_text,
-                   anchor.capture_source_id AS capture_source_id
+                   anchor.capture_source_id AS capture_source_id,
+                   anchor.message_authorship AS message_authorship
             FROM events AS anchor
             JOIN event_search_lookup AS anchor_search
               ON anchor_search.event_id = anchor.id
@@ -1059,6 +1062,7 @@ fn semantic_lite_turn_cte_sql(anchor_tail: &str) -> String {
                    COALESCE(MAX(anchor.occurred_at_ms, assistant.occurred_at_ms), anchor.occurred_at_ms) AS document_activity_at_ms,
                    anchor.event_type AS event_type,
                    anchor.role AS role,
+                   anchor.message_authorship AS message_authorship,
                    '{SEMANTIC_LITE_TURN_RANK_BUCKET}' AS rank_bucket,
                    anchor.preview_text AS user_payload_json,
                    'safe_preview' AS redaction_state,

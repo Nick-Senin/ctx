@@ -108,7 +108,7 @@ enum CommandRoot {
     #[command(about = "Locate provider/source metadata for an indexed session or event")]
     Locate(LocateArgs),
     #[command(about = "Search indexed agent history")]
-    Search(SearchArgs),
+    Search(Box<SearchArgs>),
     #[command(about = "Run read-only SQL against the local ctx index")]
     Sql(SqlArgs),
     #[command(about = "Read embedded ctx documentation")]
@@ -382,6 +382,11 @@ struct SearchArgs {
         help = "Filter by event type: message, tool_call, tool_output, command_started, command_output, command_finished, file_touched, vcs_change, artifact, summary, or notice"
     )]
     event_type: Option<String>,
+    #[arg(
+        long = "message-authorship",
+        help = "Filter by provenance-backed message authorship: human, automated, or unknown"
+    )]
+    message_authorship: Option<String>,
     #[arg(
         long,
         help = "Filter by indexed touched-file path metadata, not the current filesystem"
@@ -709,7 +714,7 @@ fn main() -> Result<()> {
         CommandRoot::Show(args) => run_show(args, data_root.clone(), &mut analytics_properties),
         CommandRoot::Locate(args) => run_locate(args, data_root.clone(), &mut analytics_properties),
         CommandRoot::Search(args) => {
-            run_search(args, data_root.clone(), &mut analytics_properties, &config)
+            run_search(*args, data_root.clone(), &mut analytics_properties, &config)
         }
         CommandRoot::Sql(args) => run_sql(args, data_root.clone()),
         CommandRoot::Docs(args) => docs::run(args),

@@ -6,7 +6,7 @@ use std::{
 
 use anyhow::{anyhow, Context, Result};
 use clap::{Args, Subcommand};
-use ctx_history_core::{database_path, EventType};
+use ctx_history_core::{database_path, EventType, MessageAuthorship};
 use ctx_history_store::{
     RawSqlOptions, Store, RAW_SQL_DEFAULT_MAX_COLUMNS, RAW_SQL_DEFAULT_MAX_ROWS,
     RAW_SQL_DEFAULT_MAX_SQL_BYTES, RAW_SQL_DEFAULT_MAX_VALUE_BYTES, RAW_SQL_DEFAULT_TIMEOUT,
@@ -326,6 +326,7 @@ fn handle_tools_call(params: Value, data_root: &Path) -> Result<Value, Value> {
                     "primary_only",
                     "include_subagents",
                     "event_type",
+                    "message_authorship",
                     "file",
                     "session",
                     "events",
@@ -507,6 +508,8 @@ fn tool_search(arguments: &Value, data_root: &Path) -> Result<Value> {
     let primary_only = optional_bool(arguments, "primary_only")?.unwrap_or(false);
     let include_subagents = optional_bool(arguments, "include_subagents")?.unwrap_or(false);
     let event_type = optional_string(arguments, "event_type")?;
+    let message_authorship = optional_message_authorship(arguments, "message_authorship")?
+        .map(|value| value.as_str().to_owned());
     let file = optional_string(arguments, "file")?.map(PathBuf::from);
     let config = config::AppConfig::load(data_root)?;
     let backend = resolve_search_backend(optional_search_backend(arguments, "backend")?, &config)?;
@@ -522,7 +525,9 @@ fn tool_search(arguments: &Value, data_root: &Path) -> Result<Value> {
         return Err(anyhow!("search needs a query or file"));
     }
     let store = open_existing_store(data_root)?;
-    let events = optional_bool(arguments, "events")?.unwrap_or(false) || session.is_some();
+    let events = optional_bool(arguments, "events")?.unwrap_or(false)
+        || session.is_some()
+        || message_authorship.is_some();
     let include_current_session =
         optional_bool(arguments, "include_current_session")?.unwrap_or(false);
 
@@ -543,6 +548,7 @@ fn tool_search(arguments: &Value, data_root: &Path) -> Result<Value> {
                 primary_only,
                 include_subagents,
                 event_type,
+                message_authorship,
                 file,
                 include_current_session,
             },
@@ -726,6 +732,7 @@ fn tool_definitions() -> Vec<Value> {
                 "since": { "type": "string", "description": "RFC3339 timestamp or day window such as 30d." },
                 "include_subagents": { "type": "boolean", "default": false, "description": "Include subagent sessions in addition to primary-agent sessions." },
                 "event_type": { "type": "string", "enum": event_type_names() },
+                "message_authorship": { "type": "string", "enum": message_authorship_names(), "description": "Provenance-backed message authorship filter. Forces event-level results." },
                 "file": { "type": "string", "description": "Indexed touched-file path. Required unless query is provided." },
                 "session": { "type": "string", "description": "ctx session id." },
                 "events": { "type": "boolean", "default": false },
@@ -808,6 +815,10 @@ fn event_type_names() -> Vec<&'static str> {
     ]
 }
 
+fn message_authorship_names() -> Vec<&'static str> {
+    vec!["human", "automated", "unknown"]
+}
+
 fn optional_string(arguments: &Value, key: &str) -> Result<Option<String>> {
     match arguments.get(key) {
         None | Some(Value::Null) => Ok(None),
@@ -885,6 +896,18 @@ fn optional_search_backend(arguments: &Value, key: &str) -> Result<Option<Search
         "semantic" => Ok(Some(SearchBackendArg::Semantic)),
         _ => Err(anyhow!("backend must be one of hybrid, semantic, lexical")),
     }
+}
+
+fn optional_message_authorship(arguments: &Value, key: &str) -> Result<Option<MessageAuthorship>> {
+    let Some(value) = optional_string(arguments, key)? else {
+        return Ok(None);
+    };
+    value.parse::<MessageAuthorship>().map(Some).map_err(|_| {
+        anyhow!(
+            "{key} must be one of {}",
+            message_authorship_names().join(", ")
+        )
+    })
 }
 
 fn validate_argument_keys(arguments: &Value, allowed: &[&str]) -> std::result::Result<(), Value> {

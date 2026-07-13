@@ -132,7 +132,7 @@ fn lexical_event_search_plan_scans_fts_once_per_match_clause() {
     let store = Store::open(temp.path().join("work.sqlite")).unwrap();
     let clauses = fts_match_clauses("planalpha planbeta");
     let expected_scans = clauses.len();
-    let (sql, values) = lexical_event_search_query(clauses, 10, 0, false);
+    let (sql, values) = lexical_event_search_query(clauses, 10, 0, None, false);
     let mut stmt = store
         .conn
         .prepare(&format!("EXPLAIN QUERY PLAN {sql}"))
