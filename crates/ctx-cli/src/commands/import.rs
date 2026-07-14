@@ -77,6 +77,7 @@ mod explicit;
 mod inventory;
 mod manifest;
 mod native;
+mod outcomes;
 mod report;
 mod requests;
 
@@ -95,6 +96,9 @@ use native::{import_one_source, validate_source_import_supported};
 pub(crate) use native::{
     import_one_source_for_search_refresh, import_one_source_without_search_refresh,
 };
+use outcomes::ImportSourceRun;
+pub(crate) use outcomes::{large_import_notice, should_parallelize_import};
+pub(crate) use outcomes::{ImportSourceFailure, ImportSourceOutcome};
 use report::{
     custom_format_failure_json, custom_format_import_json, history_source_plugin_failure_json,
     history_source_plugin_import_json, import_failure_type, low_disk_space_warning,
@@ -977,65 +981,4 @@ fn source_provider_label(source: &SourceInfo) -> &'static str {
     provider_source_spec(source.provider)
         .map(|spec| spec.display_name)
         .unwrap_or_else(|| source.provider.as_str())
-}
-
-#[derive(Debug)]
-pub(crate) struct ImportSourceOutcome {
-    pub(crate) index: usize,
-    pub(crate) source: SourceInfo,
-    pub(crate) stats: SourceStats,
-    pub(crate) summary: ProviderImportSummary,
-}
-
-#[derive(Debug)]
-pub(crate) struct ImportSourceFailure {
-    pub(crate) index: usize,
-    pub(crate) source: SourceInfo,
-    pub(crate) stats: SourceStats,
-    pub(crate) error: String,
-    pub(crate) failure_scope: ImportFailureScope,
-    pub(crate) failure_type: ImportFailureType,
-    pub(crate) rejected_summary: Option<ProviderImportSummary>,
-    pub(crate) system_error: Option<anyhow::Error>,
-}
-
-#[derive(Debug)]
-enum ImportSourceRun {
-    Imported(ImportSourceOutcome),
-    Failed(ImportSourceFailure),
-}
-
-impl ImportSourceRun {
-    pub(crate) fn index(&self) -> usize {
-        match self {
-            Self::Imported(outcome) => outcome.index,
-            Self::Failed(failure) => failure.index,
-        }
-    }
-}
-
-pub(crate) fn should_parallelize_import(planned_sources: &[PlannedImportSource]) -> bool {
-    let _ = planned_sources;
-    false
-}
-
-pub(crate) fn large_import_notice(
-    planned_sources: &[PlannedImportSource],
-    planned_total_bytes: u64,
-) -> Option<String> {
-    let planned_total_files = planned_sources
-        .iter()
-        .map(|plan| plan.stats.files)
-        .sum::<usize>();
-    if planned_total_files < LARGE_IMPORT_SOURCE_FILES_WARNING
-        && planned_total_bytes < LARGE_IMPORT_SOURCE_BYTES_WARNING
-    {
-        return None;
-    }
-    Some(format!(
-        "Large first import: scanning {} existing history {} ({}). This may take a while.",
-        format_count(planned_total_files),
-        plural(planned_total_files, "file", "files"),
-        format_bytes(planned_total_bytes)
-    ))
 }
